@@ -31,6 +31,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install updates and dependencies
 RUN apt-get update && \
     apt-get -y install \
+        apt-utils \
         make \
         g++ \
         libsctp-dev \
@@ -45,13 +46,11 @@ RUN apt-get update && \
         wget \
         libssl-dev
 
-RUN version=3.20 && \
-    build=0 && \
-    mkdir ~/temp && \
+RUN mkdir ~/temp && \
     cd ~/temp && \
-    wget https://cmake.org/files/v$version/cmake-$version.$build.tar.gz && \
-    tar -xzvf cmake-$version.$build.tar.gz && \
-    cd cmake-$version.$build/ && \
+    wget https://github.com/Kitware/CMake/releases/download/v3.27.4/cmake-3.27.4.tar.gz && \
+    tar -xzvf cmake-3.27.4.tar.gz && \
+    cd cmake-3.27.4/ && \
     ./bootstrap && \
     make -j`nproc` && \
     make install && ldconfig && \

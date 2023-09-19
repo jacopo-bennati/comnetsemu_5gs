@@ -9,7 +9,7 @@ from mininet.link import TCLink
 from mininet.log import info, setLogLevel
 from mininet.node import Controller
 
-from python_modules.Open5GS   import Open5GS
+from python_modules.Open5GS import Open5GS
 
 import json, time
 
@@ -19,7 +19,8 @@ if __name__ == "__main__":
 
     setLogLevel("info")
 
-    prj_folder="/home/vagrant/comnetsemu/app/comnetsemu_5Gnet"
+    #prj_folder="/home/vagrant/comnetsemu/app/comnetsemu_5Gnet"
+    prj_folder="/home/vagrant/comnetsemu_5Gnet"
     mongodb_folder="/home/vagrant/mongodbdata"
 
     env = dict()

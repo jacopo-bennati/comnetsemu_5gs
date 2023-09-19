@@ -15,7 +15,8 @@ if __name__ == "__main__":
 
     setLogLevel("info")
 
-    prj_folder="/home/vagrant/comnetsemu/app/comnetsemu_5Gnet"
+    #prj_folder="/home/vagrant/comnetsemu/app/comnetsemu_5Gnet"
+    prj_folder="/home/vagrant/comnetsemu_5Gnet"
     mongodb_folder="/home/vagrant/mongodbdata"
 
     env = dict()
@@ -55,6 +56,7 @@ if __name__ == "__main__":
             },
         },
     )
+    #cp.cmd("bash /open5gs/install/etc/open5gs/5gc_cp_init.sh")
 
     info("*** Adding Host for open5gs UPF\n")
     env["COMPONENT_NAME"]="upf_cld"
@@ -89,6 +91,7 @@ if __name__ == "__main__":
             "devices": "/dev/net/tun:/dev/net/tun:rwm"
         }, 
     )
+    #upf_cld.cmd("bash /open5gs/install/etc/open5gs/temp/5gc_up_init.sh")
 
     info("*** Adding Host for open5gs UPF MEC\n")
     env["COMPONENT_NAME"]="upf_mec"
@@ -123,6 +126,7 @@ if __name__ == "__main__":
             "devices": "/dev/net/tun:/dev/net/tun:rwm"
         },
     )
+    #upf_mec.cmd("bash /open5gs/install/etc/open5gs/temp/5gc_up_init.sh")
 
     info("*** Adding gNB\n")
     env["COMPONENT_NAME"]="gnb"
@@ -157,6 +161,7 @@ if __name__ == "__main__":
             "devices": "/dev/net/tun:/dev/net/tun:rwm"
         },
     )
+    #gnb.cmd("bash /mnt/ueransim/open5gs_gnb_init.sh")
 
     info("*** Adding UE\n")
     env["COMPONENT_NAME"]="ue"
@@ -191,6 +196,7 @@ if __name__ == "__main__":
             "devices": "/dev/net/tun:/dev/net/tun:rwm"
         },
     )
+    #ue.cmd("bash /mnt/ueransim/open5gs_ue_init.sh")
 
     info("*** Add controller\n")
     net.addController("c0")
@@ -215,8 +221,8 @@ if __name__ == "__main__":
     net.start()
 
     if not AUTOTEST_MODE:
-        # spawnXtermDocker("open5gs")
-        # spawnXtermDocker("gnb")
+        spawnXtermDocker("open5gs")
+        spawnXtermDocker("gnb")
         CLI(net)
 
     net.stop()
