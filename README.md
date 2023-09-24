@@ -1,3 +1,47 @@
+
+# Comnetsmu_5gs [Networking II]
+
+Emulate a 5G network deployment in comnetsemu.
+Demonstrate distributed UPF deployment and slice-base UPF selection.
+
+#### Networking II project team:
+* Bennati Jacopo (mat. 209869)
+* Finetti Emiliano ()
+* Arrondo Diego ()
+
+### Prerequisites
+
+- Comnetsemu [[link](https://git.comnets.net/public-repo/comnetsemu)] 
+
+
+## Build Instructions
+
+Clone repository in the comnetsemu VM.
+
+```
+cd ~
+git clone https://github.com/jacopo-bennati/comnetsemu_5gs.git
+```
+Build the necessary docker images:
+
+```
+cd comnetsemu_5gs/build
+./dockerhub_pull.sh
+```
+
+## Libraries
+
+### Pymongo
+
+```
+sudo pip3 install pymongo
+```
+
+
+All set :)
+
+
+# Comnetsemu_5gNet
 Emulate a 5G network deployment in comnetsemu.
 Demonstrate distributed UPF deployment and slice-base UPF selection.
 

@@ -86,3 +86,49 @@ Open5GS daemon v2.4.4
 09/18 09:41:19.409: [app] WARNING: Try to discover [UDM] (../lib/sbi/path.c:110)
 09/18 09:41:19.411: [ausf] INFO: [77f4e0b0-5607-41ee-8733-673730e7ee95] (NF-discover) NF registered (../src/ausf/nnrf-handler.c:283)
 09/18 09:41:19.412: [ausf] INFO: [77f4e0b0-5607-41ee-8733-673730e7ee95] (NF-discover) NF Profile updated (../src/ausf/nnrf-handler.c:329)
+Open5GS daemon v2.4.4
+
+09/20 13:53:39.925: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/ausf.yaml' (../lib/app/ogs-init.c:129)
+09/20 13:53:39.925: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/ausf.log' (../lib/app/ogs-init.c:132)
+09/20 13:53:39.926: [sbi] INFO: nghttp2_server() [127.0.0.11]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/20 13:53:40.027: [app] INFO: AUSF initialize...done (../src/ausf/app.c:31)
+09/20 13:53:40.120: [ausf] INFO: [1a734a50-57bd-41ee-8008-a13c910914d1] NF registred [Heartbeat:10s] (../src/ausf/nf-sm.c:198)
+Open5GS daemon v2.4.4
+
+09/20 15:34:29.499: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/ausf.yaml' (../lib/app/ogs-init.c:129)
+09/20 15:34:29.499: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/ausf.log' (../lib/app/ogs-init.c:132)
+09/20 15:34:29.500: [sbi] INFO: nghttp2_server() [127.0.0.11]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/20 15:34:29.505: [app] INFO: AUSF initialize...done (../src/ausf/app.c:31)
+09/20 15:34:29.506: [ausf] INFO: [30470688-57cb-41ee-a88b-65fcf95a3e80] NF registred [Heartbeat:10s] (../src/ausf/nf-sm.c:198)
+09/20 15:34:29.508: [ausf] INFO: [3046e4f0-57cb-41ee-b8c1-8bf52fcdd69d] (NRF-notify) NF registered (../src/ausf/nnrf-handler.c:179)
+09/20 15:34:29.508: [ausf] INFO: [3046e4f0-57cb-41ee-b8c1-8bf52fcdd69d] (NRF-notify) NF Profile updated (../src/ausf/nnrf-handler.c:198)
+Open5GS daemon v2.4.4
+
+09/20 15:36:09.345: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/ausf.yaml' (../lib/app/ogs-init.c:129)
+09/20 15:36:09.345: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/ausf.log' (../lib/app/ogs-init.c:132)
+09/20 15:36:09.345: [sbi] INFO: nghttp2_server() [127.0.0.11]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/20 15:36:09.360: [app] INFO: AUSF initialize...done (../src/ausf/app.c:31)
+09/20 15:36:09.360: [ausf] INFO: [6bca36bc-57cb-41ee-845c-db3de82d3ecf] NF registred [Heartbeat:10s] (../src/ausf/nf-sm.c:198)
+09/20 15:36:09.375: [ausf] INFO: [6bce2ca4-57cb-41ee-9cd9-e357aea15824] (NRF-notify) NF registered (../src/ausf/nnrf-handler.c:179)
+09/20 15:36:09.375: [ausf] INFO: [6bce2ca4-57cb-41ee-9cd9-e357aea15824] (NRF-notify) NF Profile updated (../src/ausf/nnrf-handler.c:198)
+Open5GS daemon v2.4.4
+
+09/22 15:17:20.479: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/ausf.yaml' (../lib/app/ogs-init.c:129)
+09/22 15:17:20.479: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/ausf.log' (../lib/app/ogs-init.c:132)
+09/22 15:17:20.479: [sbi] INFO: nghttp2_server() [127.0.0.11]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/22 15:17:20.530: [app] INFO: AUSF initialize...done (../src/ausf/app.c:31)
+09/22 15:17:20.582: [ausf] INFO: [1fc26ed8-595b-41ee-8f16-bda99679d13c] NF registred [Heartbeat:10s] (../src/ausf/nf-sm.c:198)
+09/22 15:17:47.091: [app] WARNING: Try to discover [UDM] (../lib/sbi/path.c:110)
+09/22 15:17:47.091: [ausf] INFO: [1fc25542-595b-41ee-bd3d-adc9af79c7e3] (NF-discover) NF registered (../src/ausf/nnrf-handler.c:283)
+09/22 15:17:47.091: [ausf] INFO: [1fc25542-595b-41ee-bd3d-adc9af79c7e3] (NF-discover) NF Profile updated (../src/ausf/nnrf-handler.c:329)
+09/22 16:17:47.092: [ausf] INFO: [1fc25542-595b-41ee-bd3d-adc9af79c7e3] NF expired (../src/ausf/nf-sm.c:291)
+Open5GS daemon v2.4.4
+
+09/22 16:28:58.624: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/ausf.yaml' (../lib/app/ogs-init.c:129)
+09/22 16:28:58.624: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/ausf.log' (../lib/app/ogs-init.c:132)
+09/22 16:28:58.625: [sbi] INFO: nghttp2_server() [127.0.0.11]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/22 16:28:58.636: [app] INFO: AUSF initialize...done (../src/ausf/app.c:31)
+09/22 16:28:58.638: [ausf] INFO: [21a7696a-5965-41ee-a140-b34461d4e1ea] NF registred [Heartbeat:10s] (../src/ausf/nf-sm.c:198)
+09/22 16:29:20.394: [app] WARNING: Try to discover [UDM] (../lib/sbi/path.c:110)
+09/22 16:29:20.396: [ausf] INFO: [21a77360-5965-41ee-86df-3155b50bab09] (NF-discover) NF registered (../src/ausf/nnrf-handler.c:283)
+09/22 16:29:20.396: [ausf] INFO: [21a77360-5965-41ee-86df-3155b50bab09] (NF-discover) NF Profile updated (../src/ausf/nnrf-handler.c:329)

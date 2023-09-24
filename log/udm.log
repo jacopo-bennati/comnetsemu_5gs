@@ -86,3 +86,48 @@ Open5GS daemon v2.4.4
 09/18 09:41:19.414: [app] WARNING: Try to discover [UDR] (../lib/sbi/path.c:110)
 09/18 09:41:19.416: [udm] INFO: [77f49182-5607-41ee-be6c-6f9037a89011] (NF-discover) NF registered (../src/udm/nnrf-handler.c:284)
 09/18 09:41:19.416: [udm] INFO: [77f49182-5607-41ee-be6c-6f9037a89011] (NF-discover) NF Profile updated (../src/udm/nnrf-handler.c:330)
+Open5GS daemon v2.4.4
+
+09/20 13:53:39.926: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/udm.yaml' (../lib/app/ogs-init.c:129)
+09/20 13:53:39.926: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/udm.log' (../lib/app/ogs-init.c:132)
+09/20 13:53:39.927: [sbi] INFO: nghttp2_server() [127.0.0.12]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/20 13:53:40.024: [app] INFO: UDM initialize...done (../src/udm/app.c:31)
+09/20 13:53:40.120: [udm] INFO: [1a736e36-57bd-41ee-a5c8-6dda88cc2247] NF registred [Heartbeat:10s] (../src/udm/nf-sm.c:198)
+Open5GS daemon v2.4.4
+
+09/20 15:34:29.498: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/udm.yaml' (../lib/app/ogs-init.c:129)
+09/20 15:34:29.499: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/udm.log' (../lib/app/ogs-init.c:132)
+09/20 15:34:29.499: [sbi] INFO: nghttp2_server() [127.0.0.12]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/20 15:34:29.507: [app] INFO: UDM initialize...done (../src/udm/app.c:31)
+09/20 15:34:29.508: [udm] INFO: [3046e4f0-57cb-41ee-b8c1-8bf52fcdd69d] NF registred [Heartbeat:10s] (../src/udm/nf-sm.c:198)
+09/20 15:34:29.516: [udm] INFO: [30480d1c-57cb-41ee-9968-55d5221f6765] (NRF-notify) NF registered (../src/udm/nnrf-handler.c:180)
+09/20 15:34:29.516: [udm] INFO: [30480d1c-57cb-41ee-9968-55d5221f6765] (NRF-notify) NF Profile updated (../src/udm/nnrf-handler.c:199)
+Open5GS daemon v2.4.4
+
+09/20 15:36:09.371: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/udm.yaml' (../lib/app/ogs-init.c:129)
+09/20 15:36:09.371: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/udm.log' (../lib/app/ogs-init.c:132)
+09/20 15:36:09.371: [sbi] INFO: nghttp2_server() [127.0.0.12]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/20 15:36:09.374: [app] INFO: UDM initialize...done (../src/udm/app.c:31)
+09/20 15:36:09.376: [udm] INFO: [6bce2ca4-57cb-41ee-9cd9-e357aea15824] NF registred [Heartbeat:10s] (../src/udm/nf-sm.c:198)
+09/20 15:36:09.380: [udm] INFO: [6bcd9af0-57cb-41ee-b0b0-3fe32eb28017] (NRF-notify) NF registered (../src/udm/nnrf-handler.c:180)
+09/20 15:36:09.380: [udm] INFO: [6bcd9af0-57cb-41ee-b0b0-3fe32eb28017] (NRF-notify) NF Profile updated (../src/udm/nnrf-handler.c:199)
+Open5GS daemon v2.4.4
+
+09/22 15:17:20.478: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/udm.yaml' (../lib/app/ogs-init.c:129)
+09/22 15:17:20.478: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/udm.log' (../lib/app/ogs-init.c:132)
+09/22 15:17:20.479: [sbi] INFO: nghttp2_server() [127.0.0.12]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/22 15:17:20.529: [app] INFO: UDM initialize...done (../src/udm/app.c:31)
+09/22 15:17:20.582: [udm] INFO: [1fc25542-595b-41ee-bd3d-adc9af79c7e3] NF registred [Heartbeat:10s] (../src/udm/nf-sm.c:198)
+09/22 15:17:47.091: [app] WARNING: Try to discover [UDR] (../lib/sbi/path.c:110)
+09/22 15:17:47.092: [udm] INFO: [1fc3786e-595b-41ee-b599-ffec34e1355d] (NF-discover) NF registered (../src/udm/nnrf-handler.c:284)
+09/22 15:17:47.092: [udm] INFO: [1fc3786e-595b-41ee-b599-ffec34e1355d] (NF-discover) NF Profile updated (../src/udm/nnrf-handler.c:330)
+09/22 16:17:47.093: [udm] INFO: [1fc3786e-595b-41ee-b599-ffec34e1355d] NF expired (../src/udm/nf-sm.c:291)
+Open5GS daemon v2.4.4
+
+09/22 16:28:58.625: [app] INFO: Configuration: '/open5gs/install/etc/open5gs/udm.yaml' (../lib/app/ogs-init.c:129)
+09/22 16:28:58.625: [app] INFO: File Logging: '/open5gs/install/var/log/open5gs/udm.log' (../lib/app/ogs-init.c:132)
+09/22 16:28:58.625: [sbi] INFO: nghttp2_server() [127.0.0.12]:7777 (../lib/sbi/nghttp2-server.c:144)
+09/22 16:28:58.629: [app] INFO: UDM initialize...done (../src/udm/app.c:31)
+09/22 16:28:58.630: [udm] INFO: [21a77360-5965-41ee-86df-3155b50bab09] NF registred [Heartbeat:10s] (../src/udm/nf-sm.c:198)
+09/22 16:28:58.646: [udm] INFO: [21a9bc88-5965-41ee-89c0-b90d4080dfb8] (NRF-notify) NF registered (../src/udm/nnrf-handler.c:180)
+09/22 16:28:58.646: [udm] INFO: [21a9bc88-5965-41ee-89c0-b90d4080dfb8] (NRF-notify) NF Profile updated (../src/udm/nnrf-handler.c:199)

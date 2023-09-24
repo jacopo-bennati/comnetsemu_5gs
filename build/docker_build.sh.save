@@ -1,0 +1,1 @@
+docker build --no-cache --force-rm -t my5gc_v2-4-4

@@ -15,7 +15,11 @@ import json, time
 
 if __name__ == "__main__":
 
-    prj_folder="/home/vagrant/comnetsemu/app/comnetsemu_5Gnet"
+    # Ottieni il percorso del file di script Python corrente
+    script_path = os.path.abspath(__file__)
+
+    # Ottieni il percorso della directory genitore del file di script
+    prj_folder = os.path.dirname(script_path)
     
     print(f"*** Open5GS: Init subscriber for UE 0")
     o5gs   = Open5GS( "172.17.0.2" ,"27017")
