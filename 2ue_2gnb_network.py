@@ -135,10 +135,10 @@ if __name__ == "__main__":
         },
     )
 
-    info("*** Adding gNB\n")
-    env["COMPONENT_NAME"]="gnb"
-    gnb = net.addDockerHost(
-        "gnb", 
+    info("*** Adding gNB_1\n")
+    env["COMPONENT_NAME"]="gnb_1"
+    gnb_1 = net.addDockerHost(
+        "gnb_1", 
         dimage="myueransim_v3-2-6",
         ip="192.168.0.131/24",
         # dcmd="",
@@ -169,14 +169,150 @@ if __name__ == "__main__":
         },
     )
 
-    info("*** Adding UE\n")
-    env["COMPONENT_NAME"]="ue"
-    ue = net.addDockerHost(
-        "ue", 
+    info("*** Adding UE_1\n")
+    env["COMPONENT_NAME"]="ue_1"
+    ue_1 = net.addDockerHost(
+        "ue_1", 
         dimage="myueransim_v3-2-6",
         ip="192.168.0.132/24",
         # dcmd="",
         dcmd="bash /mnt/ueransim/open5gs_ue_init.sh",
+        docker_args={
+            "environment": env,
+            "volumes": {
+                prj_folder + "/ueransim/config": {
+                    "bind": "/mnt/ueransim",
+                    "mode": "rw",
+                },
+                prj_folder + "/log": {
+                    "bind": "/mnt/log",
+                    "mode": "rw",
+                },
+                "/etc/timezone": {
+                    "bind": "/etc/timezone",
+                    "mode": "ro",
+                },
+                "/etc/localtime": {
+                    "bind": "/etc/localtime",
+                    "mode": "ro",
+                },
+                "/dev": {"bind": "/dev", "mode": "rw"},
+            },
+            "cap_add": ["NET_ADMIN"],
+            "devices": "/dev/net/tun:/dev/net/tun:rwm"
+        },
+    )
+
+    info("*** Adding UE_2\n")
+    env["COMPONENT_NAME"]="ue_2"
+    ue_2 = net.addDockerHost(
+        "ue_2", 
+        dimage="myueransim_v3-2-6",
+        ip="192.168.0.133/24",
+        # dcmd="",
+        dcmd="bash /mnt/ueransim/open5gs_ue_init.sh 2",
+        docker_args={
+            "environment": env,
+            "volumes": {
+                prj_folder + "/ueransim/config": {
+                    "bind": "/mnt/ueransim",
+                    "mode": "rw",
+                },
+                prj_folder + "/log": {
+                    "bind": "/mnt/log",
+                    "mode": "rw",
+                },
+                "/etc/timezone": {
+                    "bind": "/etc/timezone",
+                    "mode": "ro",
+                },
+                "/etc/localtime": {
+                    "bind": "/etc/localtime",
+                    "mode": "ro",
+                },
+                "/dev": {"bind": "/dev", "mode": "rw"},
+            },
+            "cap_add": ["NET_ADMIN"],
+            "devices": "/dev/net/tun:/dev/net/tun:rwm"
+        },
+    )
+
+    info("*** Adding gNB_2\n")
+    env["COMPONENT_NAME"]="gnb_2"
+    gnb_2 = net.addDockerHost(
+        "gnb_2", 
+        dimage="myueransim_v3-2-6",
+        ip="192.168.0.134/24",
+        # dcmd="",
+        dcmd="bash /mnt/ueransim/open5gs_gnb_init.sh 2",
+        docker_args={
+            "environment": env,
+            "volumes": {
+                prj_folder + "/ueransim/config": {
+                    "bind": "/mnt/ueransim",
+                    "mode": "rw",
+                },
+                prj_folder + "/log": {
+                    "bind": "/mnt/log",
+                    "mode": "rw",
+                },
+                "/etc/timezone": {
+                    "bind": "/etc/timezone",
+                    "mode": "ro",
+                },
+                "/etc/localtime": {
+                    "bind": "/etc/localtime",
+                    "mode": "ro",
+                },
+                "/dev": {"bind": "/dev", "mode": "rw"},
+            },
+            "cap_add": ["NET_ADMIN"],
+            "devices": "/dev/net/tun:/dev/net/tun:rwm"
+        },
+    )
+
+    info("*** Adding UE_3\n")
+    env["COMPONENT_NAME"]="ue_3"
+    ue_3 = net.addDockerHost(
+        "ue_3", 
+        dimage="myueransim_v3-2-6",
+        ip="192.168.0.135/24",
+        # dcmd="",
+        dcmd="bash /mnt/ueransim/open5gs_ue_init.sh 3",
+        docker_args={
+            "environment": env,
+            "volumes": {
+                prj_folder + "/ueransim/config": {
+                    "bind": "/mnt/ueransim",
+                    "mode": "rw",
+                },
+                prj_folder + "/log": {
+                    "bind": "/mnt/log",
+                    "mode": "rw",
+                },
+                "/etc/timezone": {
+                    "bind": "/etc/timezone",
+                    "mode": "ro",
+                },
+                "/etc/localtime": {
+                    "bind": "/etc/localtime",
+                    "mode": "ro",
+                },
+                "/dev": {"bind": "/dev", "mode": "rw"},
+            },
+            "cap_add": ["NET_ADMIN"],
+            "devices": "/dev/net/tun:/dev/net/tun:rwm"
+        },
+    )
+
+    info("*** Adding UE_4\n")
+    env["COMPONENT_NAME"]="ue_4"
+    ue_4 = net.addDockerHost(
+        "ue_4", 
+        dimage="myueransim_v3-2-6",
+        ip="192.168.0.136/24",
+        # dcmd="",
+        dcmd="bash /mnt/ueransim/open5gs_ue_init.sh 4",
         docker_args={
             "environment": env,
             "volumes": {
@@ -215,20 +351,31 @@ if __name__ == "__main__":
     net.addLink(s1,  s2, bw=1000, delay="10ms", intfName1="s1-s2",  intfName2="s2-s1")
     net.addLink(s2,  s3, bw=1000, delay="50ms", intfName1="s2-s3",  intfName2="s3-s2")
     
-    net.addLink(cp,      s3, bw=1000, delay="1ms", intfName1="cp-s1",  intfName2="s1-cp")
+    net.addLink(cp,      s3, bw=1000, delay="1ms", intfName1="cp-s3",  intfName2="s3-cp")
     net.addLink(upf_cld, s3, bw=1000, delay="1ms", intfName1="upf-s3",  intfName2="s3-upf_cld")
     net.addLink(upf_mec, s2, bw=1000, delay="1ms", intfName1="upf_mec-s2", intfName2="s2-upf_mec")
 
-    net.addLink(ue,  s1, bw=1000, delay="1ms", intfName1="ue-s1",  intfName2="s1-ue")
-    net.addLink(gnb, s1, bw=1000, delay="1ms", intfName1="gnb-s1", intfName2="s1-gnb")
+    net.addLink(ue_1,  s1, bw=1000, delay="1ms", intfName1="ue_1-s1",  intfName2="s1-ue_1")
+    net.addLink(ue_2,  s1, bw=1000, delay="1ms", intfName1="ue_2-s1",  intfName2="s1-ue_2")
+    net.addLink(gnb_1, s1, bw=1000, delay="1ms", intfName1="gnb_1-s1", intfName2="s1-gnb_1")
     
-    print(f"*** Open5GS: Init subscriber for UE 0")
+    net.addLink(ue_3,  s1, bw=1000, delay="1ms", intfName1="ue_3-s1",  intfName2="s1-ue_3")
+    net.addLink(ue_4,  s1, bw=1000, delay="1ms", intfName1="ue_4-s1",  intfName2="s1-ue_4")
+    net.addLink(gnb_2, s1, bw=1000, delay="1ms", intfName1="gnb_2-s1", intfName2="s1-gnb_2")
+
+    print("\n*** Open5GS: Starting subscription procedure")
     o5gs   = Open5GS( "172.17.0.2" ,"27017")
     o5gs.removeAllSubscribers()
-    with open( prj_folder + "/python_modules/subscriber_profile.json" , 'r') as f:
-        profile = json.load( f )
-    o5gs.addSubscriber(profile)
+    with open( prj_folder + "/python_modules/subscriber_profile2_2.json" , 'r') as f:
+        data = json.load( f )
 
+    if "subscribers" in data:
+        subscribers = data["subscribers"]
+        for i, subscriber in enumerate(subscribers, start=1):
+            print("\n*** Open5GS: Init subscriber for UE " + str(i))
+            o5gs.addSubscriber(subscriber)
+    else:
+        print("No subscribers found")
 
     info("\n*** Starting network\n")
     net.start()

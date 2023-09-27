@@ -19,7 +19,6 @@ if __name__ == "__main__":
 
     setLogLevel("info")
 
-       
     # Ottieni il percorso del file di script Python corrente
     script_path = os.path.abspath(__file__)
 
