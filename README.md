@@ -11,8 +11,10 @@ Demonstrate distributed UPF deployment and slice-base UPF selection.
 
 ### Prerequisites
 
-- Comnetsemu [[link](https://git.comnets.net/public-repo/comnetsemu)] 
-
+- Comnetsemu [[link](https://git.comnets.net/public-repo/comnetsemu)]
+- PyMongo
+- Tabulate
+- PyFiGlet 
 
 ## Build Instructions
 
@@ -31,20 +33,16 @@ cd comnetsemu_5gs/build
 
 ## Libraries
 
-### Pymongo
+### Run install script
 
+Installs all prerequired python modules
 ```
-sudo pip3 install pymongo
+cd comnetsemu_5gs/build
+./pyModules.sh
 ```
+*If doesn't work try with __sudo__*
 
-### Tabulate
-Required to build the output table on the terminal for testing
-
-```
-sudo pip3 install tabulate
-```
-
-All set :)
+*All set :)*
 
 ## Run the network topology
 
@@ -55,7 +53,9 @@ sudo python3 2gnb_4ue_network.py
 
 ## Testing connections
 
-To run the test script simply type:
+### Testnet
+
+To run tests simply type:
 
 ```
 sudo python3 test_2gnb_4ue.py
