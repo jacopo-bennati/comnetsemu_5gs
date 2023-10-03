@@ -6,8 +6,8 @@ Demonstrate distributed UPF deployment and slice-base UPF selection.
 
 #### Networking II project team:
 * Bennati Jacopo (mat. 209869)
-* Finetti Emiliano ()
-* Arrondo Diego ()
+* Finetti Emiliano (mat. 209076)
+* Arrondo Diego (mat. 209176)
 
 ### Prerequisites
 
@@ -37,9 +37,30 @@ cd comnetsemu_5gs/build
 sudo pip3 install pymongo
 ```
 
+### Tabulate
+Required to build the output table on the terminal for testing
+
+```
+sudo pip3 install tabulate
+```
 
 All set :)
 
+## Run the network topology
+
+Inside the root folder of the repository run the script as ___sudo___:
+```
+sudo python3 2gnb_4ue_network.py
+```
+
+## Testing connections
+
+To run the test script simply type:
+
+```
+sudo python3 test_2gnb_4ue.py
+```
+---
 
 # Comnetsemu_5gNet
 Emulate a 5G network deployment in comnetsemu.

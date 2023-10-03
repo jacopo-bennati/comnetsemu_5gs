@@ -19,7 +19,6 @@ if __name__ == "__main__":
 
     setLogLevel("info")
 
-       
     # Ottieni il percorso del file di script Python corrente
     script_path = os.path.abspath(__file__)
 
@@ -382,7 +381,7 @@ if __name__ == "__main__":
 
     if not AUTOTEST_MODE:
         # spawnXtermDocker("open5gs")
-        # spawnXtermDocker("gnb")
+        # spawnXtermDocker("gnb_1")
         CLI(net)
 
     net.stop()
