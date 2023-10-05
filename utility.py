@@ -5,13 +5,38 @@ import sys
 import json
 import os
 from tabulate import tabulate 
+import threading
 
 # Massima quantità di tentativi
 MAX_RETRY = 3
 
+# Stampa un elenco di comandi disponibili
+def help():
+    print("\tComandi disponibili:")
+    print("\t\tlatency - Esegui il test di latenza")
+    print("\t\tbandwidth - Esegui il test di banda")
+    print("\t\tshow details - Mostra i dettagli")
+    print("\t\texit - Esci dal programma")
+    print("\t\tclear - Pulisci la shell")
 
-def evnironment_check():
-     # Execute the 'docker ps' command and capture the output
+def from_list_to_string_with_regex(regexp, list):
+
+    string = ""
+
+    # Check if active containers were found
+    if list:
+        # Join container names into a single string separated by commas
+        string = " ".join(list)
+    else:
+        print("Empty list.")
+    
+    return re.findall(regexp, string)
+
+def containers_check():
+
+    print(f"*** Checking containers")
+
+    # Execute the 'docker ps' command and capture the output
     try:
         output = subprocess.check_output(["docker", "ps"]).decode("utf-8")
     except subprocess.CalledProcessError:
@@ -19,16 +44,24 @@ def evnironment_check():
         exit(1)
 
     # Find container names similar to 'ue_n'
-    container_names = re.findall(r'(\bue_\d+\b)', output)
+    user_equipments = re.findall(r'(\bue_\d+\b)', output)
+    base_stations = re.findall(r'(\bgnb_\d+\b)', output)
+    container_names = user_equipments + base_stations
 
     # Sort the list in ascending order
     container_names.sort()
+
+    return container_names
+
+def evnironment_check():
+     
+    container_names = containers_check()
 
     # Check if active containers were found
     if container_names:
         # Join container names into a single string separated by commas
         container_names_str = " ".join(container_names)
-        print(f"*** Containers found: {container_names_str}")
+        print(f"Containers found: {container_names_str}")
     else:
         print("No active containers found, make sure you have started a network topology.")
         exit(1)
@@ -150,10 +183,12 @@ def print_sub_detail_table(ue_details):
 def check_interfaces(container_names):
     # Check if 'uesimtun0' and 'uesimtun1' interfaces are configured correctly
 
+    print(f"*** Checking interfaces")
+
     print(f"Interfaces 'uesimtun0' and 'uesimtun1' state:")
 
     for container_name in container_names:
-        for retry in range(MAX_RETRY):
+        for retry in range(MAX_RETRY + 1):
             try:
                 # Run the 'ifconfig' command inside the container
                 command = f"docker exec {container_name} ifconfig"
@@ -166,10 +201,10 @@ def check_interfaces(container_names):
 
                 # If it's the last retry, exit with an error message
                 if retry == MAX_RETRY:
-                    print(f"[\u2717]{container_name}: inactive")
+                    print(f"[\u2717] {container_name}: inactive")
                     print(f"Error: Interfaces 'uesimtun0' and 'uesimtun1' are inactive in {container_name}.")
                     print(f"Note that if you just started the topology it might take at least 30s to setup correctly the interfaces (or more depending on network complexity)")
-                    exit(1)
+                    raise Exception("Interface issues")
 
                 # If not the last retry, wait for 5 seconds before retrying
                 print(f"[\u2717] {container_name}: inactive, retrying in 15 seconds...")
@@ -177,6 +212,7 @@ def check_interfaces(container_names):
 
             except Exception as e:
                 print(f"An error occurred for container {container_name}: {str(e)}")
+                sys.exit(1)
 
 # Define a function to run a ping command and capture the output
 def run_ping(container_name, interface_name):
@@ -198,23 +234,58 @@ def run_ping(container_name, interface_name):
     except Exception as e:
         return f"An error occurred for container {container_name} and interface {interface_name}: {str(e)}"
 
-def latency_test(container_names):
+def latency_test(user_equipments, concurrent = False):
 
     print("\n*** Latency test running ping to google.com")
+
+    container_names = containers_check()
+
+     # Verifica se tutti i parametri in user_equipments sono presenti in container_names
+    if all(ue in container_names for ue in user_equipments):
+        print("Container trovati in user_equipments:")
+        for ue in user_equipments:
+            if ue in container_names:
+                print(ue)
+    else:
+        # Almeno uno dei parametri non è presente, mostra un messaggio di errore
+        print("Errore: uno o più nomi di container specificati non sono presenti nella lista dei container.")
+        return
+
+    check_interfaces(user_equipments)
+
+    # Create a list to store the ping threads
+    ping_threads = []
+
+    # Define a function to run ping and store the result
+    def run_ping_and_store_result(user_equipment, interface_name, results):
+        result = run_ping(user_equipment, interface_name)
+        results[(user_equipment, interface_name)] = result
 
     # Create a dictionary to store ping results
     ping_results = {}
 
     # Iterate through container names and interfaces
-    for container_name in container_names:
-        print(f"Running ping in {container_name}")
+    for user_equipment in user_equipments:
+        print(f"Running ping in {user_equipment}")
         for interface_name in ['uesimtun0', 'uesimtun1']:
-            result = run_ping(container_name, interface_name)
-            ping_results[(container_name, interface_name)] = result
+            if concurrent:
+                # Create a thread to run ping and store the result
+                thread = threading.Thread(target=run_ping_and_store_result, args=(user_equipment, interface_name, ping_results))
+                thread.start()  # Start the thread
+                ping_threads.append(thread)
+            else:
+                result = run_ping(user_equipment, interface_name)
+                ping_results[(user_equipment, interface_name)] = result
+
+    if concurrent:
+        # Wait for all ping threads to complete
+        for thread in ping_threads:
+            thread.join()
+
 
     # Print ping results
     print("\n*** Ping Results")
-    for (container_name, interface_name), result in ping_results.items():
-        print(f"Container: {container_name}, Interface: {interface_name}")
+    for (user_equipment, interface_name), result in ping_results.items():
+        print(f"Container: {user_equipment}, Interface: {interface_name}")
         print(result)
-        print("=" * 40)
+        print("=" * 60)
