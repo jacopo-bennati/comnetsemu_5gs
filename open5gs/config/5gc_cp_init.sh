@@ -8,9 +8,10 @@ mongod --smallfiles --dbpath /var/lib/mongodb --logpath /open5gs/install/var/log
 sleep 10 && cd webui && npm run dev &
 
 ./install/bin/open5gs-nrfd & 
-sleep 5
+sleep 10
 ./install/bin/open5gs-smfd &
-./install/bin/open5gs-amfd & 
+sleep 5
+./install/bin/open5gs-amfd &
 ./install/bin/open5gs-ausfd &
 ./install/bin/open5gs-udmd &
 ./install/bin/open5gs-udrd &

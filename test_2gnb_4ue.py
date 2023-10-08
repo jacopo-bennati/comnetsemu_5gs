@@ -15,6 +15,7 @@ def main():
     # Elenco dei comandi disponibili per il completamento automatico
     available_cmds = ["latency", "bandwidth", "show_details", "exit", "clear", "help"]
     latency_params = ["-c/--concurrent", "-n/--names", "-h/--help"]
+    bandwidth_params = ["[NAMES ...]", "-h/--help"]
     
     # ---------------------------------------------------------------------
 
@@ -110,6 +111,43 @@ def main():
 
         elif cmd == "bandwidth":
             # Esegui il test di banda
+            containers_to_test = []
+            error = False
+            # To pop from start
+            if args:
+                args.reverse()
+
+            while args:
+                arg = args.pop()
+                
+                if arg == "-h" or arg == "--help":
+                    print(f"\t Available arguments,", " ".join(bandwidth_params))
+                    print(f"\t Usage: bandwidth [NAMES ...]")
+                    error = True
+                    break
+                elif arg.startswith("-"):
+                    print(f"testnet> Error: Unknown argument {arg}")
+                    print(f"\t Usage: bandwidth [NAMES ...]")
+                    error = True
+                    break
+                else:
+                    if arg in container_names:
+                        containers_to_test.append(arg)
+                    else:
+                        print(f"testnet> Error: Unknown container {arg}")
+                        print(f"\t Usage: bandwidth [NAMES ...]")
+                        error = True
+                        break
+
+            if error:
+                continue
+
+            if len(containers_to_test) < 1:
+                print("Esegui il test di banda su tutti i container")
+                utility.bandwith_test(user_equipments)
+            else:
+                print(f"Esegui il test di banda sui container specificati: {containers_to_test}")
+                utility.bandwith_test(containers_to_test)
             pass
         elif cmd == "show_details":
             # Mostra i dettagli

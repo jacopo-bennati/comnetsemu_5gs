@@ -289,3 +289,103 @@ def latency_test(user_equipments, concurrent = False):
         print(f"Container: {user_equipment}, Interface: {interface_name}")
         print(result)
         print("=" * 60)
+
+def print_bandwidth_result(data):
+    table = []
+    for ue, values in data.items():
+        for host, (sender, receiver) in values:
+            table.append([ue, host, sender, receiver])
+
+    headers = ["UE", "HOST", "sender(Mbits/sec)", "receiver(Mbits/sec)"]
+
+    print(tabulate(table, headers=headers, tablefmt="grid"))
+
+def extract_bandwidth_data(output):
+    results = []
+
+    # Divido l'output in blocchi separati per ogni connessione
+    blocks = re.split(r'iperf Done\.', output)
+
+    for block in blocks:
+        lines = block.strip().split('\n')
+        
+        if len(lines) < 3:
+            continue
+
+        # Estraggo l'indirizzo IP dell'host
+        ip_match = re.search(r'Connecting to host (\d+\.\d+\.\d+\.\d+), port \d+', lines[0])
+        if ip_match:
+            ip = ip_match.group(1)
+        else:
+            continue
+
+        # Estraggo i dati di trasferimento
+        transfer_data = []
+        for line in lines:
+            columns = line.split()
+            if "receiver" in line or "sender" in line:
+                transfer_data.append(columns[4])
+        
+        results.append((ip, transfer_data))
+
+    return results
+
+# Define a function to run a iperf3 command and capture the output
+def run_iperf3(container_name):
+    try:
+        command = "docker exec upf_mec ifconfig ogstun | awk '/inet / {print $2}' | tr -d '\n'"
+        upf_mec_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+        command = "docker exec upf_cld ifconfig ogstun | awk '/inet / {print $2}'| tr -d '\n'"
+        upf_cld_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+        command = f"docker exec {container_name} ifconfig uesimtun0 | awk '/inet / {{print $2}}' | tr -d '\n'"
+        ue_cld_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+        command = f"docker exec {container_name} ifconfig uesimtun1 | awk '/inet / {{print $2}}'| tr -d '\n'"
+        ue_mec_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+
+        command = f"docker exec {container_name} iperf3 -c {upf_mec_ip} -B {ue_mec_ip} -t 5"
+        mec_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+        command = f"docker exec {container_name} iperf3 -c {upf_cld_ip} -B {ue_cld_ip} -t 5"
+        cld_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+        
+        return extract_bandwidth_data(mec_output + cld_output)
+    
+    except Exception as e:
+        return f"An error occurred for container {container_name}: {str(e)}"
+
+def bandwith_test(user_equipments):
+
+    print("\n*** Bandwith test running")
+
+    container_names = containers_check()
+
+     # Verifica se tutti i parametri in user_equipments sono presenti in container_names
+    if all(ue in container_names for ue in user_equipments):
+        print("Container trovati in user_equipments:")
+        for ue in user_equipments:
+            if ue in container_names:
+                print(ue)
+    else:
+        # Almeno uno dei parametri non è presente, mostra un messaggio di errore
+        print("Errore: uno o più nomi di container specificati non sono presenti nella lista dei container.")
+        return
+
+    check_interfaces(user_equipments)
+
+    # Define a function to run bandwidth and store the result
+    def run_iperf3_and_store_result(user_equipment, results):
+        result = run_iperf3(user_equipment)
+        results[(user_equipment)] = result
+
+    # Create a dictionary to store bandwidth results
+    bandwidth_results = {}
+
+    # Iterate through container names and interfaces
+    for user_equipment in user_equipments:
+        print(f"Running iperf3 in {user_equipment}")
+        result = run_iperf3(user_equipment)
+        bandwidth_results[(user_equipment)] = result
+
+    # Print bandwidth results
+    print("\n*** Bandwidth Results")
+    print_bandwidth_result(bandwidth_results)
+    print("=" * 60)
