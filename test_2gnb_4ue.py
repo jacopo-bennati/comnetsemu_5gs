@@ -7,7 +7,7 @@ from pyfiglet import Figlet
 import readline
 
 # Regexp
-REGEXP_UE = r'(ue_\d)'
+REGEXP_UE = r'(ue)'
 REGEXP_GNB = r'(gnb_\d)'
 
 def main():
@@ -108,7 +108,6 @@ def main():
                 print(f"testnet> Error: argument -n/--names: expected at least two arguments")
                 print(f"\t Usage: latency [-c] [-n NAMES [NAMES ...]]")
                 continue
-
         elif cmd == "bandwidth":
             # Esegui il test di banda
             containers_to_test = []

@@ -44,7 +44,7 @@ def containers_check():
         exit(1)
 
     # Find container names similar to 'ue_n'
-    user_equipments = re.findall(r'(\bue_\d+\b)', output)
+    user_equipments = re.findall(r'(\bue+\b)', output)
     base_stations = re.findall(r'(\bgnb_\d+\b)', output)
     container_names = user_equipments + base_stations
 
@@ -97,11 +97,11 @@ def get_ue_details_dictionary(container_names, subscribers_info):
                 # Execute 'docker exec' to enter the container
                 command = f"docker exec {container_name} ./nr-cli --dump | cut -d'-' -f2"
                 imsi_output = subprocess.check_output(command, shell=True, universal_newlines=True)
-                imsi = imsi_output.strip()  # Extract IMSI from the output string
+                imsi = imsi_output.splitlines()  # Extract IMSI from the output string
 
                 # Search for IMSI in the JSON file and store slice details
-                for subscriber in subscribers_info['subscribers']:
-                    if subscriber['imsi'] == imsi:
+                for index, subscriber in enumerate(subscribers_info['subscribers'], start=1):
+                    if subscriber['imsi'] in imsi:
                         slice_details = []
                         for slice in subscriber['slice']:
                             sst = slice['sst']
@@ -115,8 +115,8 @@ def get_ue_details_dictionary(container_names, subscribers_info):
                                 'downlink': downlink
                             })
                         
-                        ue_details[container_name] = {
-                            'imsi': imsi,
+                        ue_details[f'{container_name}[{index}]'] = {
+                            'imsi': subscriber['imsi'],
                             'slice_details': slice_details
                         }
                 
@@ -139,6 +139,8 @@ def get_ue_details_dictionary(container_names, subscribers_info):
                 print(f"An error occurred for container {container_name}: {str(e)}")
     
     return ue_details
+
+# ---
 
 def print_sub_detail_table(ue_details):
     # Building the table using tabulate
