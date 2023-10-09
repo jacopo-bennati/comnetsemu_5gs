@@ -94,16 +94,16 @@ def main():
                 continue
             elif not concurrency_flag and not names_flag:
                 print("Esegui il test di latenza in modo normale su tutti i container")
-                utility.latency_test(user_equipments)
+                utility.latency_test(user_equipments, ue_details)
             elif concurrency_flag and not names_flag:
                 print("Esegui il test di latenza in modo concorrente su tutti i container")
-                utility.latency_test(user_equipments, True)
+                utility.latency_test(user_equipments, ue_details, True)
             elif concurrency_flag and names_flag:
                 print(f"Esegui il test di latenza in modo concorrente sui container specificati: {containers_to_test}")
-                utility.latency_test(containers_to_test, True)
+                utility.latency_test(containers_to_test, ue_details, True)
             elif names_flag:
                 print(f"Esegui il test di latenza in modo normale sui container specificati: {containers_to_test}")
-                utility.latency_test(containers_to_test)
+                utility.latency_test(containers_to_test, ue_details)
             else:
                 print(f"testnet> Error: argument -n/--names: expected at least two arguments")
                 print(f"\t Usage: latency [-c] [-n NAMES [NAMES ...]]")

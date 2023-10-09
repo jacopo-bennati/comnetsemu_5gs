@@ -140,8 +140,6 @@ def get_ue_details_dictionary(container_names, subscribers_info):
     
     return ue_details
 
-# ---
-
 def print_sub_detail_table(ue_details):
     # Building the table using tabulate
 
@@ -182,12 +180,14 @@ def print_sub_detail_table(ue_details):
     table = tabulate(table_data, headers, tablefmt="grid")
     print(table)
 
-def check_interfaces(container_names):
-    # Check if 'uesimtun0' and 'uesimtun1' interfaces are configured correctly
+# ---
+
+def check_interfaces(container_names, ue_details):
+    # Check if interfaces are configured correctly
 
     print(f"*** Checking interfaces")
 
-    print(f"Interfaces 'uesimtun0' and 'uesimtun1' state:")
+    print(f"Interfaces state:")
 
     for container_name in container_names:
         for retry in range(MAX_RETRY + 1):
@@ -195,22 +195,39 @@ def check_interfaces(container_names):
                 # Run the 'ifconfig' command inside the container
                 command = f"docker exec {container_name} ifconfig"
                 ifconfig_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+                interfaces = re.findall(r"(\buesimtun\d): flags=", ifconfig_output)
+                ips = re.findall(r"inet (\S+)", ifconfig_output)
+                ips = [ip for ip in ips if re.match(r"^10\.", ip)]
+                interface_info = list(zip(interfaces, ips))
+                interface_info = sorted(interface_info, key=lambda x: [int(i) for i in x[1].split('.')])
 
-                # Check if 'uesimtun0' and 'uesimtun1' interfaces are present in the output
-                if 'uesimtun0' in ifconfig_output and 'uesimtun1' in ifconfig_output:
-                    print(f"[\u2713] {container_name}: active")
-                    break  # Interfaces are active, no need to retry
+                for index in range(int((interface_info.__len__()/2))):
+                    i = 1
+                    if (index+i) > (interface_info.__len__() - 1):
+                                i = -index
+                    while (interface_info[index][1][8] != interface_info[index+i][1][8]):
+                            # print(i)
+                            # print(f"[{interface_info[index][0]}, {interface_info[index][1][8]}], [{interface_info[index+i][0]}, {interface_info[index+i][1][8]}]")
+                            i += 1
+                            if (index+i) > (interface_info.__len__() - 1):
+                                i = -index
+                    ue_details[f'ue[{index+1}]']['interfaces'] = {
+                            interface_info[index][0]: interface_info[index][1],
+                            interface_info[index + i][0]: interface_info[index + i][1]
+                        }
 
                 # If it's the last retry, exit with an error message
                 if retry == MAX_RETRY:
                     print(f"[\u2717] {container_name}: inactive")
-                    print(f"Error: Interfaces 'uesimtun0' and 'uesimtun1' are inactive in {container_name}.")
+                    print(f"Error: Interfaces are inactive in {container_name}.")
                     print(f"Note that if you just started the topology it might take at least 30s to setup correctly the interfaces (or more depending on network complexity)")
                     raise Exception("Interface issues")
-
-                # If not the last retry, wait for 5 seconds before retrying
-                print(f"[\u2717] {container_name}: inactive, retrying in 15 seconds...")
-                time.sleep(15)
+                else:
+                    print(interface_info)
+                    # Check if 'uesimtun0' and 'uesimtun1' interfaces are present in the output
+                    for interface in interface_info:
+                        print(f"[\u2713] {interface[0]}[{interface[1]}]: active")
+                    return ue_details
 
             except Exception as e:
                 print(f"An error occurred for container {container_name}: {str(e)}")
@@ -236,7 +253,7 @@ def run_ping(container_name, interface_name):
     except Exception as e:
         return f"An error occurred for container {container_name} and interface {interface_name}: {str(e)}"
 
-def latency_test(user_equipments, concurrent = False):
+def latency_test(user_equipments, ue_details, concurrent = False):
 
     print("\n*** Latency test running ping to google.com")
 
@@ -253,7 +270,7 @@ def latency_test(user_equipments, concurrent = False):
         print("Errore: uno o più nomi di container specificati non sono presenti nella lista dei container.")
         return
 
-    check_interfaces(user_equipments)
+    ue_details = check_interfaces(user_equipments, ue_details)
 
     # Create a list to store the ping threads
     ping_threads = []
@@ -267,17 +284,23 @@ def latency_test(user_equipments, concurrent = False):
     ping_results = {}
 
     # Iterate through container names and interfaces
-    for user_equipment in user_equipments:
-        print(f"Running ping in {user_equipment}")
-        for interface_name in ['uesimtun0', 'uesimtun1']:
+    for user_e, detail in ue_details.items():
+        print(f"Running ping in {user_e}")
+        for interface, ip in ue_details[str(user_e)]['interfaces'].items():
+            container = re.sub(r'\[.*?\]', '', user_e)
             if concurrent:
                 # Create a thread to run ping and store the result
-                thread = threading.Thread(target=run_ping_and_store_result, args=(user_equipment, interface_name, ping_results))
+                thread = threading.Thread(target=run_ping_and_store_result, args=(container, interface, ping_results))
+                thread.start()  # Start the thread
+                ping_threads.append(thread)
+                thread = threading.Thread(target=run_ping_and_store_result, args=(container, interface, ping_results))
                 thread.start()  # Start the thread
                 ping_threads.append(thread)
             else:
-                result = run_ping(user_equipment, interface_name)
-                ping_results[(user_equipment, interface_name)] = result
+                result = run_ping(container, interface)
+                ping_results[(user_e, interface)] = result
+                result = run_ping(container, interface)
+                ping_results[(user_e, interface)] = result
 
     if concurrent:
         # Wait for all ping threads to complete
