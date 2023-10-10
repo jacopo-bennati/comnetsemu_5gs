@@ -60,6 +60,34 @@ To run tests simply type:
 ```
 sudo python3 test_2gnb_4ue.py
 ```
+
+## Test with Wireshark
+
+Verify if it's correctly installed with all dependencies:
+
+```
+sudo apt-get install wireshark
+```
+
+To run it simply type:
+```
+wireshark
+```
+### Permission issues
+
+To enable non-root user to listen to devices use this command and add user to ___'wireshark'___ group:
+```
+sudo dpkg-reconfigure wireshark-common
+sudo adduser $USER wireshark
+sudo chmod +x /usr/bin/dumpcap
+```
+note that if you don't have $USER variable you can find it running:
+```
+whoami
+```
+in my case output is : <br>
+___vagrant___
+
 ---
 
 # Comnetsemu_5gNet

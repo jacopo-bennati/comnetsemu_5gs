@@ -9,6 +9,8 @@ import threading
 
 # Massima quantità di tentativi
 MAX_RETRY = 3
+# Destinazione test connettività
+CONN_DEST = "www.google.com"
 
 # Stampa un elenco di comandi disponibili
 def help():
@@ -67,6 +69,101 @@ def evnironment_check():
         exit(1)
     
     return container_names
+
+def check_connectivity(container_name, interface_name, destination):
+    try:
+        # Esegui il ping all'interno del container senza stampare l'output
+        command = f"docker exec {container_name} ping -c 3 -n -I {interface_name} {destination}"
+        result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        # Controlla il codice di ritorno del comando
+        if result.returncode == 0:
+            return True  # Il ping ha avuto successo
+        else:
+            return False  # Il ping non ha avuto successo
+    except Exception as e:
+        raise e
+
+def get_upfs_ip():
+    command = "docker exec upf_mec ifconfig ogstun | awk '/inet / {print $2}' | tr -d '\n'"
+    upf_mec_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+    command = "docker exec upf_cld ifconfig ogstun | awk '/inet / {print $2}'| tr -d '\n'"
+    upf_cld_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+    upfs_ip = {
+        "upf_cld": upf_cld_ip,
+        "upf_mec": upf_mec_ip
+    }
+    return upfs_ip
+
+def check_interfaces(user_equipments):
+    
+    upfs_ip = get_upfs_ip()
+    
+    print(upfs_ip)
+
+    print(f"*** Checking interfaces")
+
+    ue_interfaces_dictionary = {}
+
+    for ue in user_equipments:
+        for retry in range(MAX_RETRY + 1):
+            try:
+                # Run the 'ifconfig' command inside the container
+                command = f"docker exec {ue} ifconfig"
+                ifconfig_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+
+                # Cerca le interfacce 'uesimtunN' nel testo di output
+                interface_pattern = re.compile(r'uesimtun\d+')
+                found_interfaces = interface_pattern.findall(ifconfig_output)
+                
+                interfaces_and_ips = {}
+
+                print(f"{ue} interfaces state:")
+                if found_interfaces:
+                    for interface in found_interfaces:
+                        interfaces_and_ips[interface] = "0.0.0.0"
+                        print(f"\t[\u2713] {interface}: active ")
+                    ue_interfaces_dictionary[ue] = interfaces_and_ips
+                    break  # Interfaces are active, no need to retry
+                else:
+                    print(f"[\u2717] No active interfaces found")
+
+                # If it's the last retry, exit with an error message
+                if retry == MAX_RETRY:
+                    raise Exception("Interfaces error: Timeout")
+
+                # If not the last retry, wait for 5 seconds before retrying
+                print(f"[\u2717] {ue}: inactive, retrying in 15 seconds...")
+                time.sleep(15)
+
+            except Exception as e:
+                print(f"An error occurred for container {ue}: {str(e)}")
+                print(f"Note that if you just started the topology it might take at least 30s to setup correctly the interfaces (or more depending on network complexity)")
+                print(f"If the error persist try running the clean script: ./clean2_2.sh")
+                sys.exit(1)
+
+    # Check connectivity
+    
+    print("*** Testing connectivity")
+
+    for ue in ue_interfaces_dictionary:
+        try:
+            for interface in ue_interfaces_dictionary[ue]:
+                if check_connectivity(ue, interface, CONN_DEST):
+                    print(f"\t[\u2713] {ue} using '{interface}': Connessione riuscita")
+                else:
+                    print(f"\t[\u2717] {ue} using '{interface}': Connessione non riuscita")
+                
+        except Exception as e:
+                print(f"An error occurred for container {ue}: {str(e)}")
+                print(f"{ue}: Cannot enstablish connection")
+                sys.exit(1)
+
+    return ue_interfaces_dictionary
+
+def get_interfaces_ip():
+    # TODO: implement
+    return
 
 def get_subscriber_info():
     # Get the path of the current Python script file
@@ -180,46 +277,13 @@ def print_sub_detail_table(ue_details):
     table = tabulate(table_data, headers, tablefmt="grid")
     print(table)
 
-def check_interfaces(container_names):
-    # Check if 'uesimtun0' and 'uesimtun1' interfaces are configured correctly
-
-    print(f"*** Checking interfaces")
-
-    print(f"Interfaces 'uesimtun0' and 'uesimtun1' state:")
-
-    for container_name in container_names:
-        for retry in range(MAX_RETRY + 1):
-            try:
-                # Run the 'ifconfig' command inside the container
-                command = f"docker exec {container_name} ifconfig"
-                ifconfig_output = subprocess.check_output(command, shell=True, universal_newlines=True)
-
-                # Check if 'uesimtun0' and 'uesimtun1' interfaces are present in the output
-                if 'uesimtun0' in ifconfig_output and 'uesimtun1' in ifconfig_output:
-                    print(f"[\u2713] {container_name}: active")
-                    break  # Interfaces are active, no need to retry
-
-                # If it's the last retry, exit with an error message
-                if retry == MAX_RETRY:
-                    print(f"[\u2717] {container_name}: inactive")
-                    print(f"Error: Interfaces 'uesimtun0' and 'uesimtun1' are inactive in {container_name}.")
-                    print(f"Note that if you just started the topology it might take at least 30s to setup correctly the interfaces (or more depending on network complexity)")
-                    raise Exception("Interface issues")
-
-                # If not the last retry, wait for 5 seconds before retrying
-                print(f"[\u2717] {container_name}: inactive, retrying in 15 seconds...")
-                time.sleep(15)
-
-            except Exception as e:
-                print(f"An error occurred for container {container_name}: {str(e)}")
-                sys.exit(1)
-
 # Define a function to run a ping command and capture the output
-def run_ping(container_name, interface_name):
+def run_ping(container_name, interface_name, destination):
     try:
         # print(f"Running ping in {container_name} using interface {interface_name}")
+        
         # Run the ping command inside the container
-        command = f"docker exec {container_name} ping -c 3 -n -I {interface_name} www.google.com"
+        command = f"docker exec {container_name} ping -c 3 -n -I {interface_name} {destination}"
         ping_output = subprocess.check_output(command, shell=True, universal_newlines=True)
         
         # Use a regular expression to find the ping statistics section
@@ -234,10 +298,8 @@ def run_ping(container_name, interface_name):
     except Exception as e:
         return f"An error occurred for container {container_name} and interface {interface_name}: {str(e)}"
 
-def latency_test(user_equipments, concurrent = False):
-
-    print("\n*** Latency test running ping to google.com")
-
+def verify_input_containers(user_equipments):
+    
     container_names = containers_check()
 
      # Verifica se tutti i parametri in user_equipments sono presenti in container_names
@@ -248,34 +310,48 @@ def latency_test(user_equipments, concurrent = False):
                 print(ue)
     else:
         # Almeno uno dei parametri non è presente, mostra un messaggio di errore
-        print("Errore: uno o più nomi di container specificati non sono presenti nella lista dei container.")
+        raise Exception("Errore: uno o più nomi di container specificati non sono presenti nella lista dei container.")
+    
+    return True
+
+def latency_test(user_equipments, concurrent = False):
+
+    print("\n*** Latency test running ping to google.com")
+
+    try:
+        verify_input_containers(user_equipments)
+    except Exception as e:
+        print(e)
         return
 
-    check_interfaces(user_equipments)
+    ue_interfaces_dictionary = check_interfaces(user_equipments)
+    
+    upfs_ip = get_upfs_ip()
 
     # Create a list to store the ping threads
     ping_threads = []
 
     # Define a function to run ping and store the result
-    def run_ping_and_store_result(user_equipment, interface_name, results):
-        result = run_ping(user_equipment, interface_name)
-        results[(user_equipment, interface_name)] = result
+    def run_ping_and_store_result(ue, interface_name, destination, results):
+        result = run_ping(ue, interface_name, destination)
+        results[(ue, interface_name)] = result
 
     # Create a dictionary to store ping results
     ping_results = {}
 
     # Iterate through container names and interfaces
-    for user_equipment in user_equipments:
-        print(f"Running ping in {user_equipment}")
-        for interface_name in ['uesimtun0', 'uesimtun1']:
+    for ue in ue_interfaces_dictionary:
+        print(f"Running ping in {ue}")
+        for index, interface_name in enumerate(ue_interfaces_dictionary[ue]):
+            destination = upfs_ip[index]
+            print(f"Running ping in {interface_name},{destination}")
             if concurrent:
                 # Create a thread to run ping and store the result
-                thread = threading.Thread(target=run_ping_and_store_result, args=(user_equipment, interface_name, ping_results))
+                thread = threading.Thread(target=run_ping_and_store_result, args=(ue, interface_name, destination, ping_results))
                 thread.start()  # Start the thread
                 ping_threads.append(thread)
             else:
-                result = run_ping(user_equipment, interface_name)
-                ping_results[(user_equipment, interface_name)] = result
+                run_ping_and_store_result(ue, interface_name, destination, ping_results)
 
     if concurrent:
         # Wait for all ping threads to complete
@@ -285,7 +361,7 @@ def latency_test(user_equipments, concurrent = False):
 
     # Print ping results
     print("\n*** Ping Results")
-    for (user_equipment, interface_name), result in ping_results.items():
-        print(f"Container: {user_equipment}, Interface: {interface_name}")
+    for (ue, interface_name), result in ping_results.items():
+        print(f"Container: {ue}, Interface: {interface_name}")
         print(result)
         print("=" * 60)

@@ -27,7 +27,7 @@ def main():
     ue_details = utility.get_ue_details_dictionary(user_equipments, subscribers_info)
 
     # ---------------------------------------------------------------------
-
+    
    
     # Funzione per il completamento automatico dei comandi
     def autocomplete(text, state):
