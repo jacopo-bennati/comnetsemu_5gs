@@ -46,7 +46,7 @@ def containers_check():
         exit(1)
 
     # Find container names similar to 'ue_n'
-    user_equipments = re.findall(r'(\bue_\d+\b)', output)
+    user_equipments = re.findall(r'(\bue+\b)', output)
     base_stations = re.findall(r'(\bgnb_\d+\b)', output)
     container_names = user_equipments + base_stations
 
@@ -194,11 +194,11 @@ def get_ue_details_dictionary(container_names, subscribers_info):
                 # Execute 'docker exec' to enter the container
                 command = f"docker exec {container_name} ./nr-cli --dump | cut -d'-' -f2"
                 imsi_output = subprocess.check_output(command, shell=True, universal_newlines=True)
-                imsi = imsi_output.strip()  # Extract IMSI from the output string
+                imsi = imsi_output.splitlines()  # Extract IMSI from the output string
 
                 # Search for IMSI in the JSON file and store slice details
-                for subscriber in subscribers_info['subscribers']:
-                    if subscriber['imsi'] == imsi:
+                for index, subscriber in enumerate(subscribers_info['subscribers'], start=1):
+                    if subscriber['imsi'] in imsi:
                         slice_details = []
                         for slice in subscriber['slice']:
                             sst = slice['sst']
@@ -212,8 +212,8 @@ def get_ue_details_dictionary(container_names, subscribers_info):
                                 'downlink': downlink
                             })
                         
-                        ue_details[container_name] = {
-                            'imsi': imsi,
+                        ue_details[f'{container_name}[{index}]'] = {
+                            'imsi': subscriber['imsi'],
                             'slice_details': slice_details
                         }
                 
@@ -277,6 +277,59 @@ def print_sub_detail_table(ue_details):
     table = tabulate(table_data, headers, tablefmt="grid")
     print(table)
 
+# ---
+
+def check_interfaces(container_names, ue_details):
+    # Check if interfaces are configured correctly
+
+    print(f"*** Checking interfaces")
+
+    print(f"Interfaces state:")
+
+    for container_name in container_names:
+        for retry in range(MAX_RETRY + 1):
+            try:
+                # Run the 'ifconfig' command inside the container
+                command = f"docker exec {container_name} ifconfig"
+                ifconfig_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+                interfaces = re.findall(r"(\buesimtun\d): flags=", ifconfig_output)
+                ips = re.findall(r"inet (\S+)", ifconfig_output)
+                ips = [ip for ip in ips if re.match(r"^10\.", ip)]
+                interface_info = list(zip(interfaces, ips))
+                interface_info = sorted(interface_info, key=lambda x: [int(i) for i in x[1].split('.')])
+
+                for index in range(int((interface_info.__len__()/2))):
+                    i = 1
+                    if (index+i) > (interface_info.__len__() - 1):
+                                i = -index
+                    while (interface_info[index][1][8] != interface_info[index+i][1][8]):
+                            # print(i)
+                            # print(f"[{interface_info[index][0]}, {interface_info[index][1][8]}], [{interface_info[index+i][0]}, {interface_info[index+i][1][8]}]")
+                            i += 1
+                            if (index+i) > (interface_info.__len__() - 1):
+                                i = -index
+                    ue_details[f'ue[{index+1}]']['interfaces'] = {
+                            interface_info[index][0]: interface_info[index][1],
+                            interface_info[index + i][0]: interface_info[index + i][1]
+                        }
+
+                # If it's the last retry, exit with an error message
+                if retry == MAX_RETRY:
+                    print(f"[\u2717] {container_name}: inactive")
+                    print(f"Error: Interfaces are inactive in {container_name}.")
+                    print(f"Note that if you just started the topology it might take at least 30s to setup correctly the interfaces (or more depending on network complexity)")
+                    raise Exception("Interface issues")
+                else:
+                    print(interface_info)
+                    # Check if 'uesimtun0' and 'uesimtun1' interfaces are present in the output
+                    for interface in interface_info:
+                        print(f"[\u2713] {interface[0]}[{interface[1]}]: active")
+                    return ue_details
+
+            except Exception as e:
+                print(f"An error occurred for container {container_name}: {str(e)}")
+                sys.exit(1)
+
 # Define a function to run a ping command and capture the output
 def run_ping(container_name, interface_name, destination):
     try:
@@ -298,8 +351,10 @@ def run_ping(container_name, interface_name, destination):
     except Exception as e:
         return f"An error occurred for container {container_name} and interface {interface_name}: {str(e)}"
 
-def verify_input_containers(user_equipments):
-    
+def latency_test(user_equipments, ue_details, concurrent = False):
+
+    print("\n*** Latency test running ping to google.com")
+
     container_names = containers_check()
 
      # Verifica se tutti i parametri in user_equipments sono presenti in container_names
@@ -324,9 +379,7 @@ def latency_test(user_equipments, concurrent = False):
         print(e)
         return
 
-    ue_interfaces_dictionary = check_interfaces(user_equipments)
-    
-    upfs_ip = get_upfs_ip()
+    ue_details = check_interfaces(user_equipments, ue_details)
 
     # Create a list to store the ping threads
     ping_threads = []
@@ -340,18 +393,23 @@ def latency_test(user_equipments, concurrent = False):
     ping_results = {}
 
     # Iterate through container names and interfaces
-    for ue in ue_interfaces_dictionary:
-        print(f"Running ping in {ue}")
-        for index, interface_name in enumerate(ue_interfaces_dictionary[ue]):
-            destination = upfs_ip[index]
-            print(f"Running ping in {interface_name},{destination}")
+    for user_e, detail in ue_details.items():
+        print(f"Running ping in {user_e}")
+        for interface, ip in ue_details[str(user_e)]['interfaces'].items():
+            container = re.sub(r'\[.*?\]', '', user_e)
             if concurrent:
                 # Create a thread to run ping and store the result
-                thread = threading.Thread(target=run_ping_and_store_result, args=(ue, interface_name, destination, ping_results))
+                thread = threading.Thread(target=run_ping_and_store_result, args=(container, interface, ping_results))
+                thread.start()  # Start the thread
+                ping_threads.append(thread)
+                thread = threading.Thread(target=run_ping_and_store_result, args=(container, interface, ping_results))
                 thread.start()  # Start the thread
                 ping_threads.append(thread)
             else:
-                run_ping_and_store_result(ue, interface_name, destination, ping_results)
+                result = run_ping(container, interface)
+                ping_results[(user_e, interface)] = result
+                result = run_ping(container, interface)
+                ping_results[(user_e, interface)] = result
 
     if concurrent:
         # Wait for all ping threads to complete
@@ -365,3 +423,103 @@ def latency_test(user_equipments, concurrent = False):
         print(f"Container: {ue}, Interface: {interface_name}")
         print(result)
         print("=" * 60)
+
+def print_bandwidth_result(data):
+    table = []
+    for ue, values in data.items():
+        for host, (sender, receiver) in values:
+            table.append([ue, host, sender, receiver])
+
+    headers = ["UE", "HOST", "sender(Mbits/sec)", "receiver(Mbits/sec)"]
+
+    print(tabulate(table, headers=headers, tablefmt="grid"))
+
+def extract_bandwidth_data(output):
+    results = []
+
+    # Divido l'output in blocchi separati per ogni connessione
+    blocks = re.split(r'iperf Done\.', output)
+
+    for block in blocks:
+        lines = block.strip().split('\n')
+        
+        if len(lines) < 3:
+            continue
+
+        # Estraggo l'indirizzo IP dell'host
+        ip_match = re.search(r'Connecting to host (\d+\.\d+\.\d+\.\d+), port \d+', lines[0])
+        if ip_match:
+            ip = ip_match.group(1)
+        else:
+            continue
+
+        # Estraggo i dati di trasferimento
+        transfer_data = []
+        for line in lines:
+            columns = line.split()
+            if "receiver" in line or "sender" in line:
+                transfer_data.append(columns[4])
+        
+        results.append((ip, transfer_data))
+
+    return results
+
+# Define a function to run a iperf3 command and capture the output
+def run_iperf3(container_name):
+    try:
+        command = "docker exec upf_mec ifconfig ogstun | awk '/inet / {print $2}' | tr -d '\n'"
+        upf_mec_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+        command = "docker exec upf_cld ifconfig ogstun | awk '/inet / {print $2}'| tr -d '\n'"
+        upf_cld_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+        command = f"docker exec {container_name} ifconfig uesimtun0 | awk '/inet / {{print $2}}' | tr -d '\n'"
+        ue_cld_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+        command = f"docker exec {container_name} ifconfig uesimtun1 | awk '/inet / {{print $2}}'| tr -d '\n'"
+        ue_mec_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+
+        command = f"docker exec {container_name} iperf3 -c {upf_mec_ip} -B {ue_mec_ip} -t 5"
+        mec_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+        command = f"docker exec {container_name} iperf3 -c {upf_cld_ip} -B {ue_cld_ip} -t 5"
+        cld_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+        
+        return extract_bandwidth_data(mec_output + cld_output)
+    
+    except Exception as e:
+        return f"An error occurred for container {container_name}: {str(e)}"
+
+def bandwith_test(user_equipments):
+
+    print("\n*** Bandwith test running")
+
+    container_names = containers_check()
+
+     # Verifica se tutti i parametri in user_equipments sono presenti in container_names
+    if all(ue in container_names for ue in user_equipments):
+        print("Container trovati in user_equipments:")
+        for ue in user_equipments:
+            if ue in container_names:
+                print(ue)
+    else:
+        # Almeno uno dei parametri non è presente, mostra un messaggio di errore
+        print("Errore: uno o più nomi di container specificati non sono presenti nella lista dei container.")
+        return
+
+    check_interfaces(user_equipments)
+
+    # Define a function to run bandwidth and store the result
+    def run_iperf3_and_store_result(user_equipment, results):
+        result = run_iperf3(user_equipment)
+        results[(user_equipment)] = result
+
+    # Create a dictionary to store bandwidth results
+    bandwidth_results = {}
+
+    # Iterate through container names and interfaces
+    for user_equipment in user_equipments:
+        print(f"Running iperf3 in {user_equipment}")
+        result = run_iperf3(user_equipment)
+        bandwidth_results[(user_equipment)] = result
+
+    # Print bandwidth results
+    print("\n*** Bandwidth Results")
+    print_bandwidth_result(bandwidth_results)
+    print("=" * 60)

@@ -7,7 +7,7 @@ from pyfiglet import Figlet
 import readline
 
 # Regexp
-REGEXP_UE = r'(ue_\d)'
+REGEXP_UE = r'(ue)'
 REGEXP_GNB = r'(gnb_\d)'
 
 def main():
@@ -15,6 +15,7 @@ def main():
     # Elenco dei comandi disponibili per il completamento automatico
     available_cmds = ["latency", "bandwidth", "show_details", "exit", "clear", "help"]
     latency_params = ["-c/--concurrent", "-n/--names", "-h/--help"]
+    bandwidth_params = ["[NAMES ...]", "-h/--help"]
     
     # ---------------------------------------------------------------------
 
@@ -93,23 +94,59 @@ def main():
                 continue
             elif not concurrency_flag and not names_flag:
                 print("Esegui il test di latenza in modo normale su tutti i container")
-                utility.latency_test(user_equipments)
+                utility.latency_test(user_equipments, ue_details)
             elif concurrency_flag and not names_flag:
                 print("Esegui il test di latenza in modo concorrente su tutti i container")
-                utility.latency_test(user_equipments, True)
+                utility.latency_test(user_equipments, ue_details, True)
             elif concurrency_flag and names_flag:
                 print(f"Esegui il test di latenza in modo concorrente sui container specificati: {containers_to_test}")
-                utility.latency_test(containers_to_test, True)
+                utility.latency_test(containers_to_test, ue_details, True)
             elif names_flag:
                 print(f"Esegui il test di latenza in modo normale sui container specificati: {containers_to_test}")
-                utility.latency_test(containers_to_test)
+                utility.latency_test(containers_to_test, ue_details)
             else:
                 print(f"testnet> Error: argument -n/--names: expected at least two arguments")
                 print(f"\t Usage: latency [-c] [-n NAMES [NAMES ...]]")
                 continue
-
         elif cmd == "bandwidth":
             # Esegui il test di banda
+            containers_to_test = []
+            error = False
+            # To pop from start
+            if args:
+                args.reverse()
+
+            while args:
+                arg = args.pop()
+                
+                if arg == "-h" or arg == "--help":
+                    print(f"\t Available arguments,", " ".join(bandwidth_params))
+                    print(f"\t Usage: bandwidth [NAMES ...]")
+                    error = True
+                    break
+                elif arg.startswith("-"):
+                    print(f"testnet> Error: Unknown argument {arg}")
+                    print(f"\t Usage: bandwidth [NAMES ...]")
+                    error = True
+                    break
+                else:
+                    if arg in container_names:
+                        containers_to_test.append(arg)
+                    else:
+                        print(f"testnet> Error: Unknown container {arg}")
+                        print(f"\t Usage: bandwidth [NAMES ...]")
+                        error = True
+                        break
+
+            if error:
+                continue
+
+            if len(containers_to_test) < 1:
+                print("Esegui il test di banda su tutti i container")
+                utility.bandwith_test(user_equipments)
+            else:
+                print(f"Esegui il test di banda sui container specificati: {containers_to_test}")
+                utility.bandwith_test(containers_to_test)
             pass
         elif cmd == "show_details":
             # Mostra i dettagli
