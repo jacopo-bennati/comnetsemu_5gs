@@ -11,20 +11,27 @@ if [ "$1" == "log" ]; then
 fi
 
 sudo ip link delete s1-s2
-sudo ip link delete s2-s1
+#sudo ip link delete s2-s1
 sudo ip link delete s2-s3
-sudo ip link delete s3-s2
+#sudo ip link delete s3-s2
 
 sudo ip link delete cp-s3
-sudo ip link delete s3-cp
+# sudo ip link delete s3-cp
 sudo ip link delete upf-s3
-sudo ip link delete s3-upf
+#sudo ip link delete s3-upf
 sudo ip link delete upf_mec-s2
-sudo ip link delete s2-upf_mec
+#sudo ip link delete s2-upf_mec
 
-sudo ip link delete ue-s1
-sudo ip link delete s1-ue
+### first logical link
 
-sudo ip link delete ue-s1
+sudo ip link delete ue1-s1
+#sudo ip link delete s1-ue1
 sudo ip link delete gnb_1-s1
+#sudo ip link delete s1-gnb_1
+
+### second logical link
+
+sudo ip link delete ue2-s1
+#sudo ip link delete s1-ue2
 sudo ip link delete gnb_2-s1
+#sudo ip link delete s1-gnb_2

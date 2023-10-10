@@ -241,7 +241,7 @@ if __name__ == "__main__":
     ue2 = net.addDockerHost(
         "ue2", 
         dimage="myueransim_v3-2-6",
-        ip="192.168.0.132/24",
+        ip="192.168.0.134/24",
         # dcmd="",
         dcmd="bash /mnt/ueransim/open5gs_ue_2_init.sh",
         docker_args={
