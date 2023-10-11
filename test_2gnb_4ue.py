@@ -7,34 +7,35 @@ from pyfiglet import Figlet
 import readline
 
 # Regexp
-REGEXP_UE = r'(ue)'
-REGEXP_GNB = r'(gnb_\d)'
+REGEXP_UE = r'(ue\d)'
+REGEXP_GNB = r'(gnb\d)'
 
 def main():
 
     # Elenco dei comandi disponibili per il completamento automatico
     available_cmds = ["latency", "bandwidth", "show_details", "exit", "clear", "help"]
-    latency_params = ["-c/--concurrent", "-n/--names", "-h/--help"]
+    latency_params = ["-h" ,"-c", "NAME 1 2 N ... , ..."]
     bandwidth_params = ["[NAMES ...]", "-h/--help"]
     
     # ---------------------------------------------------------------------
 
     container_names = utility.evnironment_check()
 
-    user_equipments = utility.from_list_to_string_with_regex(REGEXP_UE, container_names)
+    # Parse list of containers to separate UEs and GNBs
+    ue_containers = utility.from_list_to_string_with_regex(REGEXP_UE, container_names)
+    user_equipments = utility.get_ue_dictionary(ue_containers)
     base_stations = utility.from_list_to_string_with_regex(REGEXP_GNB, container_names)
 
-    subscribers_info = utility.get_subscriber_info()
-    ue_details = utility.get_ue_details_dictionary(user_equipments, subscribers_info)
+    subscription_details = utility.get_subscriptions_dictionary(ue_containers) ## sarebbe da sostituire con user_equipments
+    
+    ue_details = utility.check_interfaces(ue_containers)  ## sarebbe da sostituire con user_equipments
 
     # ---------------------------------------------------------------------
     
-   
     # Funzione per il completamento automatico dei comandi
     def autocomplete(text, state):
         options = [cmd for cmd in available_cmds if cmd.startswith(text)]
         return options[state] if state < len(options) else None
-
 
     # Configura la funzione di completamento automatico
     readline.set_completer(autocomplete)
@@ -50,64 +51,58 @@ def main():
         args = parts[1:]
 
         if cmd == "latency":
-        
+            
+            skip = False
             concurrency_flag = False
-            names_flag = False
-            containers_to_test = []
-            error = False
-            # To pop from start
-            if args:
-                args.reverse()
-
-            while args:
-                arg = args.pop()
-                if arg == "-h" or arg == "--help":
-                    print(f"\t Available arguments,", " ".join(latency_params))
-                    print(f"\t Usage: latency [-c] [-n NAMES [NAMES ...]]")
-                    error = True
-                    break
-                elif arg == "-c" or arg == "--concurrent":
+            containers_to_test = {}
+            
+            # Variabile per tenere traccia dell'attuale container UE
+            current_ue = None
+            
+            for arg in args:
+                if arg == '-h' :
+                    print(f"\t Available arguments: ", " ,".join(latency_params))
+                    print(f"\t Usage: latency [-c] [NAME 1 2 N, NAME 1 2 N ...]")
+                    skip = True
+                elif arg == '-c':
                     concurrency_flag = True
-                elif arg == "-n" or arg == "--names":
-                    names_flag = True
-                    containers_to_test = []
                 elif arg.startswith("-"):
-                    print(f"testnet> Error: Unknown argument {arg}")
-                    print(f"\t Usage: latency [-c] [-n NAMES [NAMES ...]]")
-                    error = True
-                    break
+                        print(f"testnet> Error: Unknown argument {arg}")
+                        print(f"\t Usage: latency [-c] [NAMES ...]")
+                        skip = True
                 else:
-                    if names_flag:
-                        containers_to_test.append(arg)
+                    # Se l'argomento è un nome di container, impostalo come container attuale
+                    if arg in user_equipments:
+                        if current_ue != arg: # Evita di sovrascrivere il precedente se si ripete
+                            current_ue = arg
+                            containers_to_test[current_ue] = []
+                    # Se l'argomento è un numero, verifica se è un indice valido per il container attuale
+                    elif current_ue is not None and arg.isdigit():
+                        indices = user_equipments.get(current_ue)
+                        if int(arg) in indices:
+                            containers_to_test[current_ue].append(int(arg))
+                        else:
+                            print(f"testnet> Error: Invalid index {arg} for container {current_ue}")
+                            print(f"\t Valid indicies for {current_ue} are: {indices}")
+                            skip = True
                     else:
                         print(f"testnet> Error: Unknown argument {arg}")
-                        print(f"\t Usage: latency [-c] [-n NAMES [NAMES ...]]")
-                        error = True
-                        break
-
-            if error:
+                        print(f"\t Valid args are: {list(user_equipments.keys())}")
+                        skip = True
+            
+            if skip:
                 continue
+            
+            if not containers_to_test:
+                containers_to_test = user_equipments
 
-            if names_flag and len(containers_to_test) < 2:
-                print(f"testnet> Error: argument -n/--names: expected at least two arguments")
-                print(f"\t Usage: latency [-c] [-n NAMES [NAMES ...]]")
-                continue
-            elif not concurrency_flag and not names_flag:
-                print("Esegui il test di latenza in modo normale su tutti i container")
-                utility.latency_test(user_equipments, ue_details)
-            elif concurrency_flag and not names_flag:
-                print("Esegui il test di latenza in modo concorrente su tutti i container")
-                utility.latency_test(user_equipments, ue_details, True)
-            elif concurrency_flag and names_flag:
-                print(f"Esegui il test di latenza in modo concorrente sui container specificati: {containers_to_test}")
+            if concurrency_flag:
+                print(f"Esegui il test di latenza in modo concorrente sui container: {containers_to_test}")
                 utility.latency_test(containers_to_test, ue_details, True)
-            elif names_flag:
-                print(f"Esegui il test di latenza in modo normale sui container specificati: {containers_to_test}")
-                utility.latency_test(containers_to_test, ue_details)
             else:
-                print(f"testnet> Error: argument -n/--names: expected at least two arguments")
-                print(f"\t Usage: latency [-c] [-n NAMES [NAMES ...]]")
-                continue
+                print(f"Esegui il test di latenza in modo normale sui container: {containers_to_test}")
+                utility.latency_test(containers_to_test, ue_details)
+                
         elif cmd == "bandwidth":
             # Esegui il test di banda
             containers_to_test = []
@@ -150,7 +145,7 @@ def main():
             pass
         elif cmd == "show_details":
             # Mostra i dettagli
-            utility.print_sub_detail_table(ue_details)
+            utility.print_sub_detail_table(subscription_details)
         elif cmd == "help":
             # Stampa un elenco di comandi disponibili
             utility.help()
@@ -169,4 +164,4 @@ if __name__ == "__main__":
     f = Figlet(font='slant')
     print(f.renderText('TestNet!'))
 
-    main() 
+    main()
