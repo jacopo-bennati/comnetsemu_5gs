@@ -235,6 +235,8 @@ if __name__ == "__main__":
             "devices": "/dev/net/tun:/dev/net/tun:rwm"
         },
     )
+
+    time.sleep(5)
     
     info("*** Adding UE2\n")
     env["COMPONENT_NAME"]="ue2"

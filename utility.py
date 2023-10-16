@@ -206,7 +206,16 @@ def print_sub_detail_table(subscription_details):
     table = tabulate(table_data, headers, tablefmt="grid")
     print(table)
 
-# ---
+def get_upf_ip(name):
+    upf_ip = "0.0.0.0"
+    if name == UPF_CLD:
+        command = "docker exec upf_cld ifconfig ogstun | awk '/inet / {print $2}'| tr -d '\n'"
+    elif name == UPF_MEC:
+        command = "docker exec upf_mec ifconfig ogstun | awk '/inet / {print $2}' | tr -d '\n'"
+    else:
+        print(f"Error: Unknown upf called : 'upf_{name}'")
+    upf_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+    return upf_ip
 
 def check_interfaces(container_names):
     # Check if interfaces are configured correctly
@@ -269,9 +278,9 @@ def check_interfaces(container_names):
                     print(f"[\u2713] {container}[{index}] [{interface}]: DN reachable")
     return ue_details
 
-# Define a function to run a ping command and capture the output
 def run_ping(container_name, interface_name, destination):
-    #print(f"{container_name}, {interface_name}, {destination}")
+    """Define a function to run a ping command and capture the output"""
+
     try:
         # print(f"Running ping in {container_name} using interface {interface_name}")
         # Run the ping command inside the container
@@ -346,110 +355,92 @@ def latency_test(user_equipments_to_test, ue_details, concurrent = False):
         print("")
 
 def print_bandwidth_result(data):
+    
     table = []
-    for ue, values in data.items():
-        for host, (sender, receiver) in values:
-            table.append([ue, host, sender, receiver])
 
-    headers = ["UE", "HOST", "sender(Mbits/sec)", "receiver(Mbits/sec)"]
+    for (ue, index, interface, destination_name), values in data.items():
+        for (client, host, [sender, receiver]) in values:
+            ue_label = f'{ue}[{index}]'
+            interface_label = f'{interface}[{client}]'
+            destination_label = f'{destination_name}[{host}]'
+            table.append([ue_label, interface_label, destination_label, sender, receiver])
+
+    headers = ["UE", "interface", "destination", "sender(Mbits/sec)", "receiver(Mbits/sec)"]
 
     print(tabulate(table, headers=headers, tablefmt="grid"))
 
 def extract_bandwidth_data(output):
-    results = []
+    try:
+        results = []
 
-    # Divido l'output in blocchi separati per ogni connessione
-    blocks = re.split(r'iperf Done\.', output)
+        lines = output.strip().split('\n')
 
-    for block in blocks:
-        lines = block.strip().split('\n')
-        
-        if len(lines) < 3:
-            continue
+        # Inizializzo le variabili per tenere traccia degli indirizzi IP
+        client_ip = None
+        server_ip = None
 
-        # Estraggo l'indirizzo IP dell'host
-        ip_match = re.search(r'Connecting to host (\d+\.\d+\.\d+\.\d+), port \d+', lines[0])
-        if ip_match:
-            ip = ip_match.group(1)
-        else:
-            continue
+        # Estraggo gli indirizzi IP
+        for line in lines:
+            client_match = re.search(r'local (\d+\.\d+\.\d+\.\d+)', line)
+            if client_match:
+                client_ip = client_match.group(1)
+            server_match = re.search(r'Connecting to host (\d+\.\d+\.\d+\.\d+),', line)
+            if server_match:
+                server_ip = server_match.group(1)
+
+            if client_ip and server_ip:
+                break
+
+        if not (client_ip and server_ip):
+            raise Exception('Connection information not found')
 
         # Estraggo i dati di trasferimento
         transfer_data = []
         for line in lines:
             columns = line.split()
             if "receiver" in line or "sender" in line:
-                transfer_data.append(columns[4])
+                transfer_data.append(columns[6])
         
-        results.append((ip, transfer_data))
+        results.append((client_ip, server_ip, transfer_data))
 
-    return results
-
-def get_upf_ip(name):
-    upf_ip = "0.0.0.0"
-    if name == UPF_CLD:
-        command = "docker exec upf_cld ifconfig ogstun | awk '/inet / {print $2}'| tr -d '\n'"
-    elif name == UPF_MEC:
-        command = "docker exec upf_mec ifconfig ogstun | awk '/inet / {print $2}' | tr -d '\n'"
-    else:
-        print(f"Error: Unknown upf called : 'upf_{name}'")
-    upf_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
-    return upf_ip
-
-# Define a function to run a iperf3 command and capture the output
-def run_iperf3(container_name):
-    try:
-        upf_mec_ip = get_upf_ip(UPF_MEC)
-        upf_cld_ip = get_upf_ip(UPF_CLD)
-        command = f"docker exec {container_name} ifconfig uesimtun0 | awk '/inet / {{print $2}}' | tr -d '\n'"
-        ue_cld_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
-        command = f"docker exec {container_name} ifconfig uesimtun1 | awk '/inet / {{print $2}}'| tr -d '\n'"
-        ue_mec_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
-
-        command = f"docker exec {container_name} iperf3 -c {upf_mec_ip} -B {ue_mec_ip} -t 5"
-        mec_output = subprocess.check_output(command, shell=True, universal_newlines=True)
-        command = f"docker exec {container_name} iperf3 -c {upf_cld_ip} -B {ue_cld_ip} -t 5"
-        cld_output = subprocess.check_output(command, shell=True, universal_newlines=True)
-        
-        return extract_bandwidth_data(mec_output + cld_output)
+        return results
     
     except Exception as e:
-        return f"An error occurred for container {container_name}: {str(e)}"
+        return f"An error occurred: {str(e)}"
 
-def bandwith_test(user_equipments):
+def run_iperf3(ue, interface, destination):
+    """Define a function to run a iperf3 command and capture the output"""
+    try:
+        command = f"docker exec {ue} ifconfig {interface} | awk '/inet / {{print $2}}' | tr -d '\n'"
+        ue_upf_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
 
-    print("\n*** Bandwith test running")
+        command = f"docker exec {ue} iperf3 -c {destination} -B {ue_upf_ip} -t 5"
+        output = subprocess.check_output(command, shell=True, universal_newlines=True)
+        
+        return extract_bandwidth_data(output=output)
+    
+    except Exception as e:
+        return f"An error occurred for container {ue}: {str(e)}"
 
-    container_names = containers_check()
-
-     # Verifica se tutti i parametri in user_equipments sono presenti in container_names
-    if all(ue in container_names for ue in user_equipments):
-        print("Container trovati in user_equipments:")
-        for ue in user_equipments:
-            if ue in container_names:
-                print(ue)
-    else:
-        # Almeno uno dei parametri non è presente, mostra un messaggio di errore
-        print("Errore: uno o più nomi di container specificati non sono presenti nella lista dei container.")
-        return
-
-    check_interfaces(user_equipments)
-
-    # Define a function to run bandwidth and store the result
-    def run_iperf3_and_store_result(user_equipment, results):
-        result = run_iperf3(user_equipment)
-        results[(user_equipment)] = result
+def bandwith_test(user_equipments_to_test, ue_details):
 
     # Create a dictionary to store bandwidth results
     bandwidth_results = {}
-
-    # Iterate through container names and interfaces
-    for user_equipment in user_equipments:
-        print(f"Running iperf3 in {user_equipment}")
-        result = run_iperf3(user_equipment)
-        bandwidth_results[(user_equipment)] = result
+    
+    # Initial assignment 
+    upfs_ip = [get_upf_ip(UPF_CLD), get_upf_ip(UPF_MEC)]
+    
+    for ue, indices in user_equipments_to_test.items():
+        print(f"Running iperf3 for {ue}:")
+        for index in indices:
+            print(f"\tInner UE ({index})")
+            interfaces = ue_details[ue][index]
+            for count, (interface, ip) in enumerate(interfaces.items()):
+                destination = upfs_ip[count%2]
+                destination_name = UPF_CLD if (count%2) == 0 else UPF_MEC
+                result = run_iperf3(ue, interface, destination)
+                bandwidth_results[(ue, index, interface, destination_name)] = result
 
     # Print bandwidth results
     print("\n*** Bandwidth Results")
     print_bandwidth_result(bandwidth_results)
-    print("=" * 60)

@@ -15,7 +15,7 @@ def main():
     # Elenco dei comandi disponibili per il completamento automatico
     available_cmds = ["latency", "bandwidth", "show_details", "exit", "clear", "help"]
     latency_params = ["-h" ,"-c", "NAME 1 2 N ... , ..."]
-    bandwidth_params = ["[NAMES ...]", "-h/--help"]
+    bandwidth_params = ["-h", "NAME 1 2 N ... , ..."]
     
     # ---------------------------------------------------------------------
 
@@ -28,6 +28,7 @@ def main():
 
     subscription_details = utility.get_subscriptions_dictionary(ue_containers) ## sarebbe da sostituire con user_equipments
     
+    # TODO: prendere dal file di log di smf il link tra imsi e ue
     ue_details = utility.check_interfaces(ue_containers)  ## sarebbe da sostituire con user_equipments
 
     # ---------------------------------------------------------------------
@@ -97,52 +98,58 @@ def main():
                 containers_to_test = user_equipments
 
             if concurrency_flag:
-                print(f"Esegui il test di latenza in modo concorrente sui container: {containers_to_test}")
+                print(f"Eseguo il test di latenza in modo concorrente sui container: {containers_to_test}")
                 utility.latency_test(containers_to_test, ue_details, True)
             else:
-                print(f"Esegui il test di latenza in modo normale sui container: {containers_to_test}")
+                print(f"Eseguo il test di latenza in modo normale sui container: {containers_to_test}")
                 utility.latency_test(containers_to_test, ue_details)
                 
         elif cmd == "bandwidth":
-            # Esegui il test di banda
-            containers_to_test = []
-            error = False
-            # To pop from start
-            if args:
-                args.reverse()
 
-            while args:
-                arg = args.pop()
-                
-                if arg == "-h" or arg == "--help":
-                    print(f"\t Available arguments,", " ".join(bandwidth_params))
-                    print(f"\t Usage: bandwidth [NAMES ...]")
-                    error = True
-                    break
+            skip = False
+            containers_to_test = {}
+            
+            # Variabile per tenere traccia dell'attuale container UE
+            current_ue = None
+
+            for arg in args:
+                if arg == '-h' :
+                    print(f"\t Available arguments: ", " ,".join(bandwidth_params))
+                    print(f"\t Usage: bandwidth [NAME 1 2 N, NAME 1 2 N ...]")
+                    skip = True
                 elif arg.startswith("-"):
-                    print(f"testnet> Error: Unknown argument {arg}")
-                    print(f"\t Usage: bandwidth [NAMES ...]")
-                    error = True
-                    break
-                else:
-                    if arg in container_names:
-                        containers_to_test.append(arg)
-                    else:
-                        print(f"testnet> Error: Unknown container {arg}")
+                        print(f"testnet> Error: Unknown argument {arg}")
                         print(f"\t Usage: bandwidth [NAMES ...]")
-                        error = True
-                        break
-
-            if error:
+                        skip = True
+                else:
+                    # Se l'argomento è un nome di container, impostalo come container attuale
+                    if arg in user_equipments:
+                        if current_ue != arg: # Evita di sovrascrivere il precedente se si ripete
+                            current_ue = arg
+                            containers_to_test[current_ue] = []
+                    # Se l'argomento è un numero, verifica se è un indice valido per il container attuale
+                    elif current_ue is not None and arg.isdigit():
+                        indices = user_equipments.get(current_ue)
+                        if int(arg) in indices:
+                            containers_to_test[current_ue].append(int(arg))
+                        else:
+                            print(f"testnet> Error: Invalid index {arg} for container {current_ue}")
+                            print(f"\t Valid indicies for {current_ue} are: {indices}")
+                            skip = True
+                    else:
+                        print(f"testnet> Error: Unknown argument {arg}")
+                        print(f"\t Valid args are: {list(user_equipments.keys())}")
+                        skip = True
+            
+            if skip:
                 continue
-
-            if len(containers_to_test) < 1:
-                print("Esegui il test di banda su tutti i container")
-                utility.bandwith_test(user_equipments)
-            else:
-                print(f"Esegui il test di banda sui container specificati: {containers_to_test}")
-                utility.bandwith_test(containers_to_test)
-            pass
+            
+            if not containers_to_test:
+                containers_to_test = user_equipments
+                
+            print(f"Eseguo il test di banda sui container: {containers_to_test}")
+            utility.bandwith_test(containers_to_test, ue_details)
+            
         elif cmd == "show_details":
             # Mostra i dettagli
             utility.print_sub_detail_table(subscription_details)

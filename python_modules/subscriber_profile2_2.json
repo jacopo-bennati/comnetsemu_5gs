@@ -18,8 +18,8 @@
                             "pcc_rule": [],
                             "ambr": {
                                 "Comment": "unit=2 ==> Mbps",
-                                "uplink":   {"value": 2, "unit": 2},
-                                "downlink": {"value": 2, "unit": 2}
+                                "uplink":   {"value": 5, "unit": 2},
+                                "downlink": {"value": 5, "unit": 2}
                             },
                             "qos": {
                                 "index": 8,
@@ -39,8 +39,8 @@
                             "pcc_rule": [],
                             "ambr": {
                                 "Comment": "unit=2 ==> Mbps",
-                                "uplink":   {"value": 10, "unit": 2},
-                                "downlink": {"value": 10, "unit": 2}
+                                "uplink":   {"value": 50, "unit": 2},
+                                "downlink": {"value": 50, "unit": 2}
                             },
                             "qos": {
                                 "index": 8,
@@ -83,8 +83,8 @@
                             "pcc_rule": [],
                             "ambr": {
                                 "Comment": "unit=2 ==> Mbps",
-                                "uplink":   {"value": 3, "unit": 2},
-                                "downlink": {"value": 3, "unit": 2}
+                                "uplink":   {"value": 10, "unit": 2},
+                                "downlink": {"value": 10, "unit": 2}
                             },
                             "qos": {
                                 "index": 8,
@@ -104,8 +104,8 @@
                             "pcc_rule": [],
                             "ambr": {
                                 "Comment": "unit=2 ==> Mbps",
-                                "uplink":   {"value": 11, "unit": 2},
-                                "downlink": {"value": 11, "unit": 2}
+                                "uplink":   {"value": 60, "unit": 2},
+                                "downlink": {"value": 60, "unit": 2}
                             },
                             "qos": {
                                 "index": 8,
@@ -148,8 +148,8 @@
                             "pcc_rule": [],
                             "ambr": {
                                 "Comment": "unit=2 ==> Mbps",
-                                "uplink":   {"value": 4, "unit": 2},
-                                "downlink": {"value": 4, "unit": 2}
+                                "uplink":   {"value": 15, "unit": 2},
+                                "downlink": {"value": 15, "unit": 2}
                             },
                             "qos": {
                                 "index": 8,
@@ -169,8 +169,8 @@
                             "pcc_rule": [],
                             "ambr": {
                                 "Comment": "unit=2 ==> Mbps",
-                                "uplink":   {"value": 12, "unit": 2},
-                                "downlink": {"value": 12, "unit": 2}
+                                "uplink":   {"value": 70, "unit": 2},
+                                "downlink": {"value": 70, "unit": 2}
                             },
                             "qos": {
                                 "index": 8,
@@ -213,8 +213,8 @@
                             "pcc_rule": [],
                             "ambr": {
                                 "Comment": "unit=2 ==> Mbps",
-                                "uplink":   {"value": 5, "unit": 2},
-                                "downlink": {"value": 5, "unit": 2}
+                                "uplink":   {"value": 20, "unit": 2},
+                                "downlink": {"value": 20, "unit": 2}
                             },
                             "qos": {
                                 "index": 8,
@@ -234,8 +234,8 @@
                             "pcc_rule": [],
                             "ambr": {
                                 "Comment": "unit=2 ==> Mbps",
-                                "uplink":   {"value": 13, "unit": 2},
-                                "downlink": {"value": 13, "unit": 2}
+                                "uplink":   {"value": 80, "unit": 2},
+                                "downlink": {"value": 80, "unit": 2}
                             },
                             "qos": {
                                 "index": 8,
