@@ -24,12 +24,14 @@ def main():
     # Parse list of containers to separate UEs and GNBs
     ue_containers = utility.from_list_to_string_with_regex(REGEXP_UE, container_names)
     user_equipments = utility.get_ue_dictionary(ue_containers)
-    base_stations = utility.from_list_to_string_with_regex(REGEXP_GNB, container_names)
-
-    subscription_details = utility.get_subscriptions_dictionary(ue_containers) ## sarebbe da sostituire con user_equipments
+    # ue dict with only indices
+    user_equipments_list = utility.get_ue_list(user_equipments)
     
-    # TODO: prendere dal file di log di smf il link tra imsi e ue
-    ue_details = utility.check_interfaces(ue_containers)  ## sarebbe da sostituire con user_equipments
+    # base_stations = utility.from_list_to_string_with_regex(REGEXP_GNB, container_names)
+    
+    ue_details = utility.check_interfaces(user_equipments)
+    
+    subscription_details = utility.get_subscriptions_dictionary(ue_details)
 
     # ---------------------------------------------------------------------
     
@@ -65,37 +67,41 @@ def main():
                     print(f"\t Available arguments: ", " ,".join(latency_params))
                     print(f"\t Usage: latency [-c] [NAME 1 2 N, NAME 1 2 N ...]")
                     skip = True
+                    break
                 elif arg == '-c':
                     concurrency_flag = True
                 elif arg.startswith("-"):
                         print(f"testnet> Error: Unknown argument {arg}")
                         print(f"\t Usage: latency [-c] [NAMES ...]")
                         skip = True
+                        break
                 else:
                     # Se l'argomento è un nome di container, impostalo come container attuale
-                    if arg in user_equipments:
+                    if arg in user_equipments_list:
                         if current_ue != arg: # Evita di sovrascrivere il precedente se si ripete
                             current_ue = arg
                             containers_to_test[current_ue] = []
                     # Se l'argomento è un numero, verifica se è un indice valido per il container attuale
                     elif current_ue is not None and arg.isdigit():
-                        indices = user_equipments.get(current_ue)
+                        indices = user_equipments_list.get(current_ue)
                         if int(arg) in indices:
                             containers_to_test[current_ue].append(int(arg))
                         else:
                             print(f"testnet> Error: Invalid index {arg} for container {current_ue}")
                             print(f"\t Valid indicies for {current_ue} are: {indices}")
                             skip = True
+                            break
                     else:
                         print(f"testnet> Error: Unknown argument {arg}")
-                        print(f"\t Valid args are: {list(user_equipments.keys())}")
+                        print(f"\t Valid args are: {list(user_equipments_list.keys())}")
                         skip = True
+                        break
             
             if skip:
                 continue
             
             if not containers_to_test:
-                containers_to_test = user_equipments
+                containers_to_test = user_equipments_list
 
             if concurrency_flag:
                 print(f"Eseguo il test di latenza in modo concorrente sui container: {containers_to_test}")
@@ -117,35 +123,39 @@ def main():
                     print(f"\t Available arguments: ", " ,".join(bandwidth_params))
                     print(f"\t Usage: bandwidth [NAME 1 2 N, NAME 1 2 N ...]")
                     skip = True
+                    break
                 elif arg.startswith("-"):
                         print(f"testnet> Error: Unknown argument {arg}")
                         print(f"\t Usage: bandwidth [NAMES ...]")
                         skip = True
+                        break
                 else:
                     # Se l'argomento è un nome di container, impostalo come container attuale
-                    if arg in user_equipments:
+                    if arg in user_equipments_list:
                         if current_ue != arg: # Evita di sovrascrivere il precedente se si ripete
                             current_ue = arg
                             containers_to_test[current_ue] = []
                     # Se l'argomento è un numero, verifica se è un indice valido per il container attuale
                     elif current_ue is not None and arg.isdigit():
-                        indices = user_equipments.get(current_ue)
+                        indices = user_equipments_list.get(current_ue)
                         if int(arg) in indices:
                             containers_to_test[current_ue].append(int(arg))
                         else:
                             print(f"testnet> Error: Invalid index {arg} for container {current_ue}")
                             print(f"\t Valid indicies for {current_ue} are: {indices}")
                             skip = True
+                            break
                     else:
                         print(f"testnet> Error: Unknown argument {arg}")
-                        print(f"\t Valid args are: {list(user_equipments.keys())}")
+                        print(f"\t Valid args are: {list(user_equipments_list.keys())}")
                         skip = True
+                        break
             
             if skip:
                 continue
             
             if not containers_to_test:
-                containers_to_test = user_equipments
+                containers_to_test = user_equipments_list
                 
             print(f"Eseguo il test di banda sui container: {containers_to_test}")
             utility.bandwith_test(containers_to_test, ue_details)

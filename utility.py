@@ -6,6 +6,7 @@ import json
 import os
 from tabulate import tabulate 
 import threading
+import pprint
 
 # Massima quantità di tentativi
 MAX_RETRY = 3
@@ -43,15 +44,15 @@ def get_ue_dictionary(ue_containers):
     
     user_equipments = {}
     
-    inner_ues = 0
-    
     for ue_container in ue_containers:
-        inner_ues = len(dump_imsi_in_container(ue_container))
-        user_equipments[ue_container] = []
-        for index in range(inner_ues):
-            user_equipments[ue_container].append(index+1)
-            
+        user_equipments[ue_container] = dump_imsi_in_container(ue_container)
     return user_equipments
+
+def get_ue_list(user_equipments):
+    user_equipments_list = {}
+    for key, values in user_equipments.items():
+        user_equipments_list[key] = list(range(1, len(values) + 1))
+    return user_equipments_list
 
 def containers_check():
 
@@ -111,7 +112,7 @@ def dump_imsi_in_container(user_equipment):
     imsi = imsi_output.splitlines()  # Extract IMSI from the output string
     return imsi
 
-def get_subscriptions_dictionary(ues_container):
+def get_subscriptions_dictionary(ue_details):
     
     subscribers_info = get_subscriber_info()
 
@@ -120,14 +121,13 @@ def get_subscriptions_dictionary(ues_container):
     # Create a dictionary to associate IMSIs with slice details
     subscription_details = {}
 
-    # Iterate through UE container names
-    for ue_container in ues_container:
-        for retry in range(MAX_RETRY):
-            try:
-                imsi = dump_imsi_in_container(ue_container)
+    try:
+        for ue_container, inner_ues in ue_details.items():
+            for inner_ue, data in inner_ues.items():
+                imsi = data['imsi']
                 # Search for IMSI in the JSON file and store slice details
-                for index, subscriber in enumerate(subscribers_info['subscribers'], start=1):
-                    if subscriber['imsi'] in imsi:
+                for subscriber in subscribers_info['subscribers']:
+                    if imsi in subscriber['imsi']:
                         slice_details = []
                         for slice in subscriber['slice']:
                             sst = slice['sst']
@@ -141,28 +141,13 @@ def get_subscriptions_dictionary(ues_container):
                                 'downlink': downlink
                             })
                         
-                        subscription_details[f'{ue_container}[{index}]'] = {
+                        subscription_details[f'{ue_container}[{inner_ue}]'] = {
                             'imsi': subscriber['imsi'],
                             'slice_details': slice_details
                         }
-                
-                # Check if imsi is present in the output
-                if imsi:
-                    print(f"\t[\u2713] {ue_container}: active and operating")
-                    break  # Imsi obtained, no need to retry
-
-                # If it's the last retry, exit with an error message
-                if retry == MAX_RETRY:
-                    print(f"[\u2717] Unable to obtain IMSI from {ue_container}")
-                    print(f"Note that if you just started the topology it might take at least 30s to setup correctly the User equipments (or more depending on network complexity)  ")
-                    exit(1)
-
-                # If not the last retry, wait for 5 seconds before retrying
-                print(f"[\u2717] Unable to obtain IMSI from {ue_container}, retrying in 15 seconds...")
-                time.sleep(15)
-                
-            except Exception as e:
-                print(f"An error occurred for container {ue_container}: {str(e)}")
+                        
+    except Exception as e:
+        print(f"An error occurred for container: {str(e)}")
     
     return subscription_details
 
@@ -217,60 +202,110 @@ def get_upf_ip(name):
     upf_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
     return upf_ip
 
-def check_interfaces(container_names):
-    # Check if interfaces are configured correctly
+def get_supi_detail_from_smf_log():
+    
+    # Get the path of the current Python script file
+    script_path = os.path.abspath(__file__)
+
+    # Get the path of the parent directory of the script file
+    prj_folder = os.path.dirname(script_path)
+    
+    # Dizionario per archiviare i dati estratti
+    data = {}
+
+    # Modello regex per corrispondere alle linee con le informazioni sui SUPI
+    supi_pattern = re.compile(r'UE SUPI\[imsi-(\d+)\] DNN\[(\w+)\] IPv4\[([\d.]+)\] IPv6\[\]')
+    
+    # Apri e leggi il file di log
+    with open(f'{prj_folder}/log/smf.log', 'r') as log_file:
+        for line in log_file:
+            match = supi_pattern.search(line)
+            if match:
+                imsi = match.group(1)
+                dnn = match.group(2)
+                ip = match.group(3)
+
+                if imsi not in data:
+                    data[imsi] = {}
+                data[imsi][dnn] = ip
+
+    sorted_data = {key: data[key] for key in sorted(data.keys())}
+    return sorted_data
+
+def get_interface_ip_dict(ue_container):
+    # Run the 'ifconfig' command inside the container
+    command = f"docker exec {ue_container} ifconfig"
+    ifconfig_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+    interfaces = re.findall(r"(\buesimtun\d): flags=", ifconfig_output)
+    ips = re.findall(r"inet (\S+)", ifconfig_output)
+    ips = [ip for ip in ips if re.match(r"^10\.", ip)]
+
+    interface_ip_dict = dict(zip(ips, interfaces))
+    return interface_ip_dict
+
+def check_interfaces(ue_containers):
+    """ Creates a dictionary with ue details with reference to ips and interfaces of each slice of each imsi.\n
+    Also performs dn reachability """
 
     print(f"*** Checking interfaces")    
     
     ue_details = {}
+    
+    imsi_dn_ips_dict = get_supi_detail_from_smf_log()
 
-    for container_name in container_names:
+    for ue_container, inner_ues in ue_containers.items():
+        ue_details[ue_container] = {}
         for retry in range(MAX_RETRY + 1):
             try:
-                # Run the 'ifconfig' command inside the container
-                command = f"docker exec {container_name} ifconfig"
-                ifconfig_output = subprocess.check_output(command, shell=True, universal_newlines=True)
-                interfaces = re.findall(r"(\buesimtun\d): flags=", ifconfig_output)
-                ips = re.findall(r"inet (\S+)", ifconfig_output)
-                ips = [ip for ip in ips if re.match(r"^10\.", ip)]
+                
+                interface_ip_dict = get_interface_ip_dict(ue_container)
+                
+                current_dict = {}
+                
+                for inner_ue_imsi in inner_ues:
+                    current_dict[inner_ue_imsi] = imsi_dn_ips_dict[inner_ue_imsi]
+                
+                for index, (imsi, data) in enumerate(current_dict.items(), start=1):
+                    
+                    slice_data = []
+                    
+                    for dnn, ip in data.items():
+                        slice_data.append({
+                            'dnn': dnn,
+                            'ip': ip,
+                            'interface': interface_ip_dict[ip]
+                        })
 
-                interface_info = list(zip(interfaces, ips))
-                interface_info = sorted(interface_info, key=lambda x: int(x[0].lstrip("uesimtun")))
+                    ue_details[ue_container][index] = {
+                        'imsi': imsi,
+                        'slice': slice_data
+                    }
                 
-                inner_ue_detail = {}
-                
-                interfaces = {}
-                
-                # from 0 to upf number 
-                target = 1
-                
-                for inner_ue, (interface, ip) in enumerate(interface_info, start=1):
-                    interfaces[interface] = ip
-                    # EVEN, each two iterfaces since there are two upfs
-                    if inner_ue % 2 == 0:
-                        inner_ue_detail[target] = interfaces.copy()
-                        interfaces.clear()
-                        target += 1
-                
-                ue_details[container_name] = inner_ue_detail
-                        
-                # If it's the last retry, exit with an error message
                 if retry == MAX_RETRY:
-                    print(f"[\u2717] {container_name}")
-                    print(f"Error: Interfaces are inactive in {container_name}.")
+                    print(f"[\u2717] {ue_container}")
+                    print(f"Error: Interfaces are inactive in {ue_container}.")
                     print(f"Note that if you just started the topology it might take some time to setup correctly the interfaces depending on network complexity")
                     raise Exception("Interface issues")
                 else:
                     break
             except Exception as e:
-                print(f"An error occurred for container {container_name}: {str(e)}")
+                print(f"An error occurred for container {ue_container}: {str(e)}")
                 sys.exit(1)
+            
+    #pprint.pprint(ue_details)
                 
     # Run connectivity test
     for container, inner_ue_data in ue_details.items():
-        print(f"°°° {container}:")
-        for index, inner_ue in inner_ue_data.items():
-            for interface, ip in inner_ue.items():
+        print(f"°°° {container}")
+        # iterate through each inner ue data
+        for index, inner_ue_details in inner_ue_data.items():
+            # iterate through each slice
+            for slice in inner_ue_details['slice']:
+                # extract slice data
+                dnn = slice['dnn']
+                ip = slice['ip']
+                interface = slice['interface']
+                # run ping
                 ping_result = run_ping(container, interface, CONN_TEST_DEST)
                 if "100% packet loss" in ping_result:
                     print(f"[\u2717] {container}[{index}] [{interface}]: DN not reachable")
@@ -307,53 +342,75 @@ def latency_test(user_equipments_to_test, ue_details, concurrent = False):
     ping_threads = []
 
     # Define a function to run ping and store the result
-    def run_ping_and_store_result(user_equipment, interface_name, destination, results):
+    def run_ping_and_store_result(user_equipment, ue_index, interface_name, destination, results):
         result = run_ping(user_equipment, interface_name, destination)
-        results[(user_equipment, interface_name, destination)] = result
+        results[(user_equipment, ue_index, interface_name, destination)] = result
 
     # Create a dictionary to store ping results
     ping_results = {}
     
     # Initial assignment 
-    upfs_ip = [get_upf_ip(UPF_CLD), get_upf_ip(UPF_MEC)]
+    upfs_ip = {'internet': get_upf_ip(UPF_CLD), 'mec': get_upf_ip(UPF_MEC) }
     
     for ue, indices in user_equipments_to_test.items():
         print(f"Running ping for {ue}:")
-        for index in indices:
-            print(f"\tInner UE ({index})")
-            interfaces = ue_details[ue][index]
-            for count, (interface, ip) in enumerate(interfaces.items()):
-                destination = upfs_ip[count%2]
+        for ue_index in indices:
+            print(f"\tInner UE ({ue_index})")
+            slices = ue_details[ue][ue_index]['slice']
+            for slice in slices:
+                dnn = slice['dnn']
+                interface = slice['interface']
+                ip = slice['ip'] 
+                destination = upfs_ip[dnn]
                 if concurrent:
                     # Create a thread to run ping and store the result
                     _target = run_ping_and_store_result
-                    _args=(ue, interface, destination, ping_results)
+                    _args=(ue, ue_index, interface, destination, ping_results)
                     thread = threading.Thread(target = _target, args = _args)
                     thread.start()  # Start the thread
                     ping_threads.append(thread)
                 else:
                     result = run_ping(ue, interface, destination)
-                    ping_results[(ue, interface, destination)] = result
+                    ping_results[(ue, ue_index, interface, destination)] = result
 
     if concurrent:
         # Wait for all ping threads to complete
         for thread in ping_threads:
             thread.join()
+            
+    
+    print_latency_result(upfs_ip, ping_results)
 
-    # Print ping results
-    print("\n*** Ping Results")
-    for (ue, interface_name, destination), result in ping_results.items():
+def print_latency_result(upfs_ip, data):
+    
+    pattern = re.compile(r'rtt min/avg/max/mdev = (\d+\.\d+)/(\d+\.\d+)/(\d+\.\d+)/(\d+\.\d+) ms')
+    
+    table = []
+    
+    headers = ["UE", "interface", "destination", "min_rtt", "avg_rtt", "max_rtt", "mdev_rtt"]
+    
+    for (ue, ue_index, interface, destination), result in data.items():
         ping_output_lines = result.split('\n')
         ping_rtt = ping_output_lines[1]
-        if destination == upfs_ip[0]:
+        if destination == upfs_ip['internet']:
             dest_name = UPF_CLD
         else:
             dest_name = UPF_MEC
-        print(f"Container: {ue}, Interface: {interface_name}, Destination: {dest_name}")
-        print(ping_rtt)
-        print("_" * 60)
-        print("")
+        
+        ue_label = f'{ue}[{ue_index}]'
+        interface_label = interface
+        destination_label = dest_name
+        
+        match = pattern.search(ping_rtt)
 
+        # Se trovi una corrispondenza, estrai i valori e creane un dizionario
+        if match:
+            min_rtt, avg_rtt, max_rtt, mdev_rtt = map(float, match.groups())
+            
+        table.append([ue_label, interface_label, destination_label, min_rtt, avg_rtt, max_rtt, mdev_rtt])
+    
+    print(tabulate(table, headers=headers, tablefmt="grid"))
+    
 def print_bandwidth_result(data):
     
     table = []
@@ -428,18 +485,21 @@ def bandwith_test(user_equipments_to_test, ue_details):
     bandwidth_results = {}
     
     # Initial assignment 
-    upfs_ip = [get_upf_ip(UPF_CLD), get_upf_ip(UPF_MEC)]
+    upfs_ip = {'internet': get_upf_ip(UPF_CLD), 'mec': get_upf_ip(UPF_MEC)}
     
     for ue, indices in user_equipments_to_test.items():
         print(f"Running iperf3 for {ue}:")
-        for index in indices:
-            print(f"\tInner UE ({index})")
-            interfaces = ue_details[ue][index]
-            for count, (interface, ip) in enumerate(interfaces.items()):
-                destination = upfs_ip[count%2]
-                destination_name = UPF_CLD if (count%2) == 0 else UPF_MEC
+        for ue_index in indices:
+            print(f"\tInner UE ({ue_index})")
+            slices = ue_details[ue][ue_index]['slice']
+            for slice in slices:
+                dnn = slice['dnn']
+                interface = slice['interface']
+                ip = slice['ip'] 
+                destination = upfs_ip[dnn]
+                destination_name = UPF_CLD if dnn=='internet' == 0 else UPF_MEC
                 result = run_iperf3(ue, interface, destination)
-                bandwidth_results[(ue, index, interface, destination_name)] = result
+                bandwidth_results[(ue, ue_index, interface, destination_name)] = result
 
     # Print bandwidth results
     print("\n*** Bandwidth Results")
