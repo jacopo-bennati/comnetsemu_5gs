@@ -7,6 +7,8 @@ import os
 from tabulate import tabulate 
 import threading
 import pprint
+import subprocess
+import asyncio 
 
 # Massima quantità di tentativi
 MAX_RETRY = 3
@@ -313,6 +315,19 @@ def check_interfaces(ue_containers):
                     print(f"[\u2713] {container}[{index}] [{interface}]: DN reachable")
     return ue_details
 
+def capture_packets(tshark_interface,timeout,nodes):
+    result = None
+    try:
+        command = f"sudo tshark -i {tshark_interface} -Y 'icmp' -a duration:{timeout}"
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        result = stdout.decode('utf-8')
+        if result != '':
+            nodes.append(tshark_interface)
+            
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
 def run_ping(container_name, interface_name, destination):
     """Define a function to run a ping command and capture the output"""
 
@@ -335,7 +350,6 @@ def run_ping(container_name, interface_name, destination):
         return f"An error occurred for container {container_name} and interface {interface_name}: {str(e)}"
 
 def latency_test(user_equipments_to_test, ue_details, concurrent = False):
-
     #print("\n*** Latency test")
 
     # Create a list to store the ping threads
@@ -480,7 +494,6 @@ def run_iperf3(ue, interface, destination):
         return f"An error occurred for container {ue}: {str(e)}"
 
 def bandwith_test(user_equipments_to_test, ue_details):
-
     # Create a dictionary to store bandwidth results
     bandwidth_results = {}
     
@@ -504,3 +517,53 @@ def bandwith_test(user_equipments_to_test, ue_details):
     # Print bandwidth results
     print("\n*** Bandwidth Results")
     print_bandwidth_result(bandwidth_results)
+
+def capture_packets(tshark_interface,timeout,nodes):
+    result = None
+    try:
+        command = f"sudo tshark -i {tshark_interface} -Y 'icmp' -a duration:{timeout}"
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        result = stdout.decode('utf-8')
+        if result != '':
+            nodes.append(tshark_interface)
+            
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
+def show_nodes(user_equipments_to_test, ue_details):
+
+    tshark_interfaces = ["s1-gnb1", "s1-gnb2", "s3-upf", "s2-upf_mec"]
+    timeout = 2
+    tshark_threads = []
+    tshark_result = {}
+        
+    for ue, indices in user_equipments_to_test.items():
+        for ue_index in indices:
+            print(f"Checking nodes for {ue}[{ue_index}]")
+            slices = ue_details[ue][ue_index]['slice']
+            for slice in slices:
+                interface = slice['interface']
+                nodes = []
+                for tshark_interface in tshark_interfaces:
+                    tshark_thread = threading.Thread(target=capture_packets, args=(tshark_interface, timeout, nodes))
+                    tshark_thread.start()
+                    tshark_threads.append(tshark_thread)
+
+                    result = run_ping(ue, interface, 'www.google.com')
+
+                # Attendi che tutti i thread di tshark terminino
+                for tshark_thread in tshark_threads:
+                    tshark_thread.join()
+                
+                tshark_result[(ue, index, interface)] = nodes
+
+    # Print nodes results
+    print("\n*** Nodes")
+    data = []
+    for ((ue, index, interface), nodes) in tshark_result.items():
+        ue_label = f"{ue}[{index}]"
+        data.append((ue_label, interface, nodes))
+    # Converte i dati in una tabella
+    table = tabulate(data, headers=["UE", "Interface", "Nodes"], tablefmt="grid")
+    print(table)
