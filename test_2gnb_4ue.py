@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import asyncio
 import utility
 import os
 from pyfiglet import Figlet
@@ -13,7 +14,7 @@ REGEXP_GNB = r'(gnb\d)'
 def main():
 
     # Elenco dei comandi disponibili per il completamento automatico
-    available_cmds = ["latency", "bandwidth", "show_details", "exit", "clear", "help"]
+    available_cmds = ["latency", "bandwidth", "nodes", "show_details", "exit", "clear", "help"]
     latency_params = ["-h" ,"-c", "NAME 1 2 N ... , ..."]
     bandwidth_params = ["-h", "NAME 1 2 N ... , ..."]
     
@@ -149,7 +150,50 @@ def main():
                 
             print(f"Eseguo il test di banda sui container: {containers_to_test}")
             utility.bandwith_test(containers_to_test, ue_details)
+        elif cmd == "nodes":
+
+            skip = False
+            containers_to_test = {}
             
+            # Variabile per tenere traccia dell'attuale container UE
+            current_ue = None
+            
+            for arg in args:
+                if arg == '-h' :
+                    print(f"\t Available arguments: ", " ,".join(bandwidth_params))
+                    print(f"\t Usage: latency [-c] [NAME 1 2 N, NAME 1 2 N ...]")
+                    skip = True
+                elif arg.startswith("-"):
+                        print(f"testnet> Error: Unknown argument {arg}")
+                        print(f"\t Usage: latency [-c] [NAMES ...]")
+                        skip = True
+                else:
+                    # Se l'argomento è un nome di container, impostalo come container attuale
+                    if arg in user_equipments:
+                        if current_ue != arg: # Evita di sovrascrivere il precedente se si ripete
+                            current_ue = arg
+                            containers_to_test[current_ue] = []
+                    # Se l'argomento è un numero, verifica se è un indice valido per il container attuale
+                    elif current_ue is not None and arg.isdigit():
+                        indices = user_equipments.get(current_ue)
+                        if int(arg) in indices:
+                            containers_to_test[current_ue].append(int(arg))
+                        else:
+                            print(f"testnet> Error: Invalid index {arg} for container {current_ue}")
+                            print(f"\t Valid indicies for {current_ue} are: {indices}")
+                            skip = True
+                    else:
+                        print(f"testnet> Error: Unknown argument {arg}")
+                        print(f"\t Valid args are: {list(user_equipments.keys())}")
+                        skip = True
+            
+            if skip:
+                continue
+            
+            if not containers_to_test:
+                containers_to_test = user_equipments
+                
+            utility.show_nodes(containers_to_test, ue_details)
         elif cmd == "show_details":
             # Mostra i dettagli
             utility.print_sub_detail_table(subscription_details)
