@@ -328,6 +328,19 @@ def capture_packets(tshark_interface,timeout,nodes):
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
+def capture_packets(tshark_interface,timeout,nodes):
+    result = None
+    try:
+        command = f"sudo tshark -i {tshark_interface} -Y 'icmp' -a duration:{timeout}"
+        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate()
+        result = stdout.decode('utf-8')
+        if result != '':
+            nodes.append(tshark_interface)
+            
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
 def run_ping(container_name, interface_name, destination):
     """Define a function to run a ping command and capture the output"""
 

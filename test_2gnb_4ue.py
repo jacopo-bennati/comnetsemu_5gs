@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import asyncio
+import asyncio
 import utility
 import os
 from pyfiglet import Figlet
@@ -14,6 +15,7 @@ REGEXP_GNB = r'(gnb\d)'
 def main():
 
     # Elenco dei comandi disponibili per il completamento automatico
+    available_cmds = ["latency", "bandwidth", "nodes", "show_details", "exit", "clear", "help"]
     available_cmds = ["latency", "bandwidth", "nodes", "show_details", "exit", "clear", "help"]
     latency_params = ["-h" ,"-c", "NAME 1 2 N ... , ..."]
     bandwidth_params = ["-h", "NAME 1 2 N ... , ..."]
