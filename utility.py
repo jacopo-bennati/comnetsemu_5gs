@@ -510,7 +510,7 @@ def bandwith_test(user_equipments_to_test, ue_details):
                 interface = slice['interface']
                 ip = slice['ip'] 
                 destination = upfs_ip[dnn]
-                destination_name = UPF_CLD if dnn=='internet' == 0 else UPF_MEC
+                destination_name = UPF_CLD if dnn=='internet' else UPF_MEC
                 result = run_iperf3(ue, interface, destination)
                 bandwidth_results[(ue, ue_index, interface, destination_name)] = result
 
@@ -535,7 +535,7 @@ def show_nodes(user_equipments_to_test, ue_details):
 
     tshark_interfaces = ["s1-gnb1", "s1-gnb2", "s3-upf", "s2-upf_mec"]
     timeout = 2
-    tshark_threads = []
+    threads = []
     tshark_result = {}
         
     for ue, indices in user_equipments_to_test.items():
@@ -544,19 +544,28 @@ def show_nodes(user_equipments_to_test, ue_details):
             slices = ue_details[ue][ue_index]['slice']
             for slice in slices:
                 interface = slice['interface']
-                nodes = []
+                node_list = []
+                formatted_node_list = []
                 for tshark_interface in tshark_interfaces:
-                    tshark_thread = threading.Thread(target=capture_packets, args=(tshark_interface, timeout, nodes))
+                    tshark_thread = threading.Thread(target=capture_packets, args=(tshark_interface, timeout, node_list))
                     tshark_thread.start()
-                    tshark_threads.append(tshark_thread)
-
-                    result = run_ping(ue, interface, 'www.google.com')
+                    threads.append(tshark_thread)
+                    ping_thread = threading.Thread(target=run_ping, args=(ue, interface, CONN_TEST_DEST))
+                    ping_thread.start()
+                    threads.append(ping_thread)
 
                 # Attendi che tutti i thread di tshark terminino
-                for tshark_thread in tshark_threads:
-                    tshark_thread.join()
+                for thread in threads:
+                    thread.join()
                 
-                tshark_result[(ue, index, interface)] = nodes
+                node_list = sorted(node_list)
+                def format_node(node):
+                    matches = re.findall(r'(gnb\d+|upf(_mec)?)', node)
+                    return matches[0][0]
+                for node in node_list:
+                    formatted_node = format_node(node)
+                    formatted_node_list.append(formatted_node)
+                tshark_result[(ue, ue_index, interface)] = formatted_node_list
 
     # Print nodes results
     print("\n*** Nodes")

@@ -179,13 +179,13 @@ def main():
                         skip = True
                 else:
                     # Se l'argomento è un nome di container, impostalo come container attuale
-                    if arg in user_equipments:
+                    if arg in user_equipments_list:
                         if current_ue != arg: # Evita di sovrascrivere il precedente se si ripete
                             current_ue = arg
                             containers_to_test[current_ue] = []
                     # Se l'argomento è un numero, verifica se è un indice valido per il container attuale
                     elif current_ue is not None and arg.isdigit():
-                        indices = user_equipments.get(current_ue)
+                        indices = user_equipments_list.get(current_ue)
                         if int(arg) in indices:
                             containers_to_test[current_ue].append(int(arg))
                         else:
@@ -194,14 +194,14 @@ def main():
                             skip = True
                     else:
                         print(f"testnet> Error: Unknown argument {arg}")
-                        print(f"\t Valid args are: {list(user_equipments.keys())}")
+                        print(f"\t Valid args are: {list(user_equipments_list.keys())}")
                         skip = True
             
             if skip:
                 continue
             
             if not containers_to_test:
-                containers_to_test = user_equipments
+                containers_to_test = user_equipments_list
                 
             utility.show_nodes(containers_to_test, ue_details)
         elif cmd == "show_details":
