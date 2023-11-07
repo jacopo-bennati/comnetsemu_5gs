@@ -12,6 +12,7 @@ from mininet.node import Controller
 from python_modules.Open5GS import Open5GS
 
 import json, time
+import subprocess
 
 if __name__ == "__main__":
 
@@ -236,7 +237,7 @@ if __name__ == "__main__":
         },
     )
 
-    time.sleep(5)
+    #time.sleep(5)
     
     info("*** Adding UE2\n")
     env["COMPONENT_NAME"]="ue2"
@@ -271,6 +272,43 @@ if __name__ == "__main__":
             "devices": "/dev/net/tun:/dev/net/tun:rwm"
         },
     )
+    
+    #time.sleep(5)
+    
+    info("*** Adding MEC SERVER\n")
+    env["COMPONENT_NAME"]="mec_server"
+    mec_server = net.addDockerHost(
+        "mec_server", 
+        dimage="mec_server",
+        ip="192.168.0.135/24",
+        # dcmd="echo hello docker",
+        dcmd="bash /mnt/mec_server/mec_server.sh",
+        docker_args={
+            "environment": env,
+            "volumes": {
+                prj_folder + "/mec_server": {
+                    "bind": "/mnt/mec_server",
+                    "mode": "rw",
+                },
+                prj_folder + "/log": {
+                    "bind": "/mnt/log",
+                    "mode": "rw",
+                },
+                "/etc/timezone": {
+                    "bind": "/etc/timezone",
+                    "mode": "ro",
+                },
+                "/etc/localtime": {
+                    "bind": "/etc/localtime",
+                    "mode": "ro",
+                },
+            },
+            "cap_add": ["NET_ADMIN"],
+        },
+    )
+
+    time.sleep(5)
+    
 
     info("*** Add controller\n")
     net.addController("c0")
@@ -293,6 +331,8 @@ if __name__ == "__main__":
     net.addLink(gnb1, s1, bw=1000, delay="1ms", intfName1="gnb1-s1", intfName2="s1-gnb1")
     net.addLink(gnb2, s1, bw=1000, delay="1ms", intfName1="gnb2-s1", intfName2="s1-gnb2")
     
+    net.addLink(mec_server, s2, bw=1000, delay="1ms", intfName1="mec_server-s2", intfName2="s2-mec_server")
+    
     print("\n*** Open5GS: Starting subscription procedure")
     o5gs   = Open5GS( "172.17.0.2" ,"27017")
     o5gs.removeAllSubscribers()
@@ -301,11 +341,15 @@ if __name__ == "__main__":
 
     if "subscribers" in data:
         subscribers = data["subscribers"]
-        for i, subscriber in enumerate(subscribers, start=1):
-            print("\n*** Open5GS: Init subscriber for UE " + str(i))
+        n = 0
+        for subscriber in subscribers:
+            n += 1
             o5gs.addSubscriber(subscriber)
+        info(f"*** Open5GS: Successfuly added {n} subscribers ")
     else:
-        print("No subscribers found")
+        info(f"*** Open5GS: No subscribers found")
+    
+    
 
     info("\n*** Starting network\n")
     net.start()
@@ -314,5 +358,4 @@ if __name__ == "__main__":
         # spawnXtermDocker("open5gs")
         # spawnXtermDocker("gnb_1")
         CLI(net)
-
     net.stop()

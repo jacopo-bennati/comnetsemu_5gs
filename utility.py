@@ -17,6 +17,7 @@ CONN_TEST_DEST = "www.google.com"
 # upfs macros
 UPF_MEC = "upf_mec"
 UPF_CLD = "upf_cld"
+MEC_SERVER_IP = "192.168.0.135"
 
 # Stampa un elenco di comandi disponibili
 def help():
@@ -305,12 +306,20 @@ def check_interfaces(ue_containers):
                 dnn = slice['dnn']
                 ip = slice['ip']
                 interface = slice['interface']
+                destination = MEC_SERVER_IP if dnn == "mec" else CONN_TEST_DEST
                 # run ping
-                ping_result = run_ping(container, interface, CONN_TEST_DEST)
+                ping_result = run_ping(container, interface, destination)
+                
                 if "100% packet loss" in ping_result:
-                    print(f"[\u2717] {container}[{index}] [{interface}]: DN not reachable")
+                    if dnn == "mec":
+                        print(f"[\u2717] {container}[{index}] [{interface}]: MEC server not reachable")
+                    else:
+                        print(f"[\u2717] {container}[{index}] [{interface}]: DN not reachable")
                 else:
-                    print(f"[\u2713] {container}[{index}] [{interface}]: DN reachable")
+                    if dnn == "mec":
+                        print(f"[\u2713] {container}[{index}] [{interface}]: MEC server reachable")
+                    else:
+                        print(f"[\u2713] {container}[{index}] [{interface}]: DN reachable")
     return ue_details
 
 def run_ping(container_name, interface_name, destination):
@@ -361,7 +370,7 @@ def latency_test(user_equipments_to_test, ue_details, concurrent = False):
                 dnn = slice['dnn']
                 interface = slice['interface']
                 ip = slice['ip'] 
-                destination = upfs_ip[dnn]
+                destination = upfs_ip[dnn]          
                 if concurrent:
                     # Create a thread to run ping and store the result
                     _target = run_ping_and_store_result
