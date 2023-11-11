@@ -10,43 +10,41 @@ import pprint
 import subprocess
 import asyncio 
 
-# Massima quantità di tentativi
+# Maximum number of retries
 MAX_RETRY = 3
-# Corresponds to number of ogstuns in upfs, therefore upfs number
+# Corresponds to the number of ogstuns in upfs, therefore the upfs number
 INTERFACE_PER_UE = 2
 # Default destination for connectivity test 
 CONN_TEST_DEST = "www.google.com"
-# upfs macros
+# UPF macros
 UPF_MEC = "upf_mec"
 UPF_CLD = "upf_cld"
 MEC_SERVER_IP = "192.168.0.135"
 
-# Stampa un elenco di comandi disponibili
+# Print a list of available commands
 def help():
-    print("\tComandi disponibili:")
-    print("\t\tlatency - Esegui il test di latenza")
-    print("\t\tbandwidth - Esegui il test di banda")
-    print("\t\tshow details - Mostra i dettagli")
-    print("\t\texit - Esci dal programma")
-    print("\t\tclear - Pulisci la shell")
+    print("\tAvailable Commands:")
+    print("\t\tlatency - Run the latency test")
+    print("\t\tbandwidth - Run the bandwidth test")
+    print("\t\tshow details - Display details")
+    print("\t\texit - Exit the program")
+    print("\t\tclear - Clear the shell")
 
-def from_list_to_string_with_regex(regexp, list):
-
+# Convert a list to a string with regex
+def from_list_to_string_with_regex(regexp, lst):
     string = ""
 
     # Check if active containers were found
-    if list:
+    if lst:
         # Join container names into a single string separated by commas
-        string = " ".join(list)
+        string = " ".join(lst)
     else:
         print("Empty list.")
     
     return re.findall(regexp, string)
 
 def get_ue_dictionary(ue_containers):
-    
     user_equipments = {}
-    
     for ue_container in ue_containers:
         user_equipments[ue_container] = dump_imsi_in_container(ue_container)
     return user_equipments
@@ -58,7 +56,6 @@ def get_ue_list(user_equipments):
     return user_equipments_list
 
 def containers_check():
-
     print(f"*** Checking containers")
 
     # Execute the 'docker ps' command and capture the output
@@ -78,8 +75,7 @@ def containers_check():
 
     return container_names
 
-def evnironment_check():
-     
+def environment_check():
     container_names = containers_check()
 
     # Check if active containers were found
@@ -88,7 +84,7 @@ def evnironment_check():
         container_names_str = " ".join(container_names)
         print(f"Containers found: {container_names_str}")
     else:
-        print("No active containers found, make sure you have started a network topology.")
+        print("No active containers found; make sure you have started a network topology.")
         exit(1)
     
     return container_names
@@ -116,7 +112,6 @@ def dump_imsi_in_container(user_equipment):
     return imsi
 
 def get_subscriptions_dictionary(ue_details):
-    
     subscribers_info = get_subscriber_info()
 
     print("*** Creating a dictionary with UE subscription details")
@@ -201,25 +196,15 @@ def get_upf_ip(name):
     elif name == UPF_MEC:
         command = "docker exec upf_mec ifconfig ogstun | awk '/inet / {print $2}' | tr -d '\n'"
     else:
-        print(f"Error: Unknown upf called : 'upf_{name}'")
+        print(f"Error: Unknown upf called: 'upf_{name}'")
     upf_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
     return upf_ip
 
 def get_supi_detail_from_smf_log():
-    
-    # Get the path of the current Python script file
     script_path = os.path.abspath(__file__)
-
-    # Get the path of the parent directory of the script file
     prj_folder = os.path.dirname(script_path)
-    
-    # Dizionario per archiviare i dati estratti
     data = {}
-
-    # Modello regex per corrispondere alle linee con le informazioni sui SUPI
     supi_pattern = re.compile(r'UE SUPI\[imsi-(\d+)\] DNN\[(\w+)\] IPv4\[([\d.]+)\] IPv6\[\]')
-    
-    # Apri e leggi il file di log
     with open(f'{prj_folder}/log/smf.log', 'r') as log_file:
         for line in log_file:
             match = supi_pattern.search(line)
@@ -227,7 +212,6 @@ def get_supi_detail_from_smf_log():
                 imsi = match.group(1)
                 dnn = match.group(2)
                 ip = match.group(3)
-
                 if imsi not in data:
                     data[imsi] = {}
                 data[imsi][dnn] = ip
@@ -236,7 +220,6 @@ def get_supi_detail_from_smf_log():
     return sorted_data
 
 def get_interface_ip_dict(ue_container):
-    # Run the 'ifconfig' command inside the container
     command = f"docker exec {ue_container} ifconfig"
     ifconfig_output = subprocess.check_output(command, shell=True, universal_newlines=True)
     interfaces = re.findall(r"(\buesimtun\d): flags=", ifconfig_output)
@@ -247,8 +230,8 @@ def get_interface_ip_dict(ue_container):
     return interface_ip_dict
 
 def check_interfaces(ue_containers):
-    """ Creates a dictionary with ue details with reference to ips and interfaces of each slice of each imsi.\n
-    Also performs dn reachability """
+    """Creates a dictionary with UE details with reference to IPs and interfaces of each slice of each IMSI.
+    Also performs DN reachability."""
 
     print(f"*** Checking interfaces")    
     
@@ -287,20 +270,20 @@ def check_interfaces(ue_containers):
                 if retry == MAX_RETRY:
                     print(f"[\u2717] {ue_container}")
                     print(f"Error: Interfaces are inactive in {ue_container}.")
-                    print(f"Note that if you just started the topology it might take some time to setup correctly the interfaces depending on network complexity")
-                    raise Exception("Interface issues")
+                    print(f"Note that if you just started the topology, it might take some time to set up the interfaces correctly, depending on network complexity.")
+                    sys.exit(1)
                 else:
                     break
             except Exception as e:
                 print(f"An error occurred for container {ue_container}: {str(e)}")
                 sys.exit(1)
             
-    #pprint.pprint(ue_details)
+    # pprint.pprint(ue_details)
                 
     # Run connectivity test
     for container, inner_ue_data in ue_details.items():
         print(f"°°° {container}")
-        # iterate through each inner ue data
+        # iterate through each inner UE data
         for index, inner_ue_details in inner_ue_data.items():
             # iterate through each slice
             for slice in inner_ue_details['slice']:
@@ -309,9 +292,17 @@ def check_interfaces(ue_containers):
                 ip = slice['ip']
                 interface = slice['interface']
                 destination = MEC_SERVER_IP if dnn == "mec" else CONN_TEST_DEST
-                # run ping
-                ping_result = run_ping(container, interface, destination)
+                try:
+                    # run ping
+                    ping_result = run_ping(container, interface, destination)
+                except RuntimeError as re:
+                    print(re)
+                    sys.exit(1)
+                except Exception as e:
+                    print(f"An error occurred for container {container} and interface {interface}:\n{str(e)}")
+                    sys.exit(1)
                 
+                # Analyze the output of the command
                 if "100% packet loss" in ping_result:
                     if dnn == "mec":
                         print(f"[\u2717] {container}[{index}] [{interface}]: MEC server not reachable")
@@ -324,20 +315,7 @@ def check_interfaces(ue_containers):
                         print(f"[\u2713] {container}[{index}] [{interface}]: DN reachable")
     return ue_details
 
-def capture_packets(tshark_interface,timeout,nodes):
-    result = None
-    try:
-        command = f"sudo tshark -i {tshark_interface} -Y 'icmp' -a duration:{timeout}"
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        result = stdout.decode('utf-8')
-        if result != '':
-            nodes.append(tshark_interface)
-            
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-
-def capture_packets(tshark_interface,timeout,nodes):
+def capture_packets(tshark_interface, timeout, nodes):
     result = None
     try:
         command = f"sudo tshark -i {tshark_interface} -Y 'icmp' -a duration:{timeout}"
@@ -367,19 +345,26 @@ def run_ping(container_name, interface_name, destination):
             ping_statistics = match.group(1)  # Get the ping statistics part
             return ping_statistics
         else:
-            return f"Unable to find ping statistics for container {container_name} and interface {interface_name}"
-    except Exception as e:
-        return f"An error occurred for container {container_name} and interface {interface_name}: {str(e)}"
+            raise RuntimeError(f"Unable to find ping statistics for container {container_name} and interface {interface_name}")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"An error occurred for container {container_name} and interface {interface_name}:\n{str(e)}")
 
-def latency_test(user_equipments_to_test, ue_details, concurrent = False):
-    #print("\n*** Latency test")
+def latency_test(user_equipments_to_test, ue_details, concurrent=False):
+    # print("\n*** Latency test")
 
     # Create a list to store the ping threads
     ping_threads = []
 
     # Define a function to run ping and store the result
     def run_ping_and_store_result(user_equipment, ue_index, interface_name, destination, results):
-        result = run_ping(user_equipment, interface_name, destination)
+        try:
+            result = run_ping(user_equipment, interface_name, destination)
+        except RuntimeError as re:
+            print(re)
+            sys.exit(1)
+        except Exception as e:
+            print(f"An error occurred for container {user_equipment} and interface {interface}:\n{str(e)}")
+            sys.exit(1)
         results[(user_equipment, ue_index, interface_name, destination)] = result
 
     # Create a dictionary to store ping results
@@ -396,17 +381,24 @@ def latency_test(user_equipments_to_test, ue_details, concurrent = False):
             for slice in slices:
                 dnn = slice['dnn']
                 interface = slice['interface']
-                ip = slice['ip'] 
-                destination = upfs_ip[dnn]          
+                ip = slice['ip']
+                destination = upfs_ip[dnn]
                 if concurrent:
                     # Create a thread to run ping and store the result
                     _target = run_ping_and_store_result
-                    _args=(ue, ue_index, interface, destination, ping_results)
-                    thread = threading.Thread(target = _target, args = _args)
+                    _args = (ue, ue_index, interface, destination, ping_results)
+                    thread = threading.Thread(target=_target, args=_args)
                     thread.start()  # Start the thread
                     ping_threads.append(thread)
                 else:
-                    result = run_ping(ue, interface, destination)
+                    try:
+                        result = run_ping(ue, interface, destination)
+                    except RuntimeError as re:
+                        print(re)
+                        sys.exit(1)
+                    except Exception as e:
+                        print(f"An error occurred for container {ue} and interface {interface}:\n{str(e)}")
+                        sys.exit(1)
                     ping_results[(ue, ue_index, interface, destination)] = result
 
     if concurrent:
@@ -439,7 +431,7 @@ def print_latency_result(upfs_ip, data):
         
         match = pattern.search(ping_rtt)
 
-        # Se trovi una corrispondenza, estrai i valori e creane un dizionario
+        # If a match is found, extract the values and create a dictionary
         if match:
             min_rtt, avg_rtt, max_rtt, mdev_rtt = map(float, match.groups())
             
@@ -468,11 +460,11 @@ def extract_bandwidth_data(output):
 
         lines = output.strip().split('\n')
 
-        # Inizializzo le variabili per tenere traccia degli indirizzi IP
+        # Initialize variables to track IP addresses
         client_ip = None
         server_ip = None
 
-        # Estraggo gli indirizzi IP
+        # Extract IP addresses
         for line in lines:
             client_match = re.search(r'local (\d+\.\d+\.\d+\.\d+)', line)
             if client_match:
@@ -487,7 +479,7 @@ def extract_bandwidth_data(output):
         if not (client_ip and server_ip):
             raise Exception('Connection information not found')
 
-        # Estraggo i dati di trasferimento
+        # Extract transfer data
         transfer_data = []
         for line in lines:
             columns = line.split()
@@ -502,7 +494,7 @@ def extract_bandwidth_data(output):
         return f"An error occurred: {str(e)}"
 
 def run_iperf3(ue, interface, destination):
-    """Define a function to run a iperf3 command and capture the output"""
+    """Define a function to run an iperf3 command and capture the output"""
     try:
         command = f"docker exec {ue} ifconfig {interface} | awk '/inet / {{print $2}}' | tr -d '\n'"
         ue_upf_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
@@ -515,7 +507,7 @@ def run_iperf3(ue, interface, destination):
     except Exception as e:
         return f"An error occurred for container {ue}: {str(e)}"
 
-def bandwith_test(user_equipments_to_test, ue_details):
+def bandwidth_test(user_equipments_to_test, ue_details):
     # Create a dictionary to store bandwidth results
     bandwidth_results = {}
     
@@ -540,7 +532,7 @@ def bandwith_test(user_equipments_to_test, ue_details):
     print("\n*** Bandwidth Results")
     print_bandwidth_result(bandwidth_results)
 
-def capture_packets(tshark_interface,timeout,nodes):
+def capture_packets(tshark_interface, timeout, nodes):
     result = None
     try:
         command = f"sudo tshark -i {tshark_interface} -Y 'icmp' -a duration:{timeout}"
@@ -554,39 +546,68 @@ def capture_packets(tshark_interface,timeout,nodes):
         print(f"An error occurred: {str(e)}")
 
 def show_nodes(user_equipments_to_test, ue_details):
+    """
+    Displays information about network nodes for each user equipment and interface.
 
+    :param user_equipments_to_test: Dictionary containing user equipment information.
+    :param ue_details: Detailed information about user equipment, including slices and interfaces.
+    """
+
+    # List of Tshark interfaces to check for nodes
     tshark_interfaces = ["s1-gnb1", "s1-gnb2", "s3-upf", "s2-upf_mec"]
-    timeout = 2
+    
+    # Timeout for Tshark capture in seconds
+    timeout = 2.5
+    
+    # List to store thread objects
     threads = []
+    
+    # Dictionary to store Tshark results
     tshark_result = {}
         
     for ue, indices in user_equipments_to_test.items():
         for ue_index in indices:
             print(f"Checking nodes for {ue}[{ue_index}]")
+            
+            # Extract slices information
             slices = ue_details[ue][ue_index]['slice']
+            
             for slice in slices:
+                # Extract interface information
                 interface = slice['interface']
+                
+                # Lists to store raw and formatted node information
                 node_list = []
                 formatted_node_list = []
+                
+                # Iterate through Tshark interfaces and run capture_packets and run_ping in separate threads
                 for tshark_interface in tshark_interfaces:
                     tshark_thread = threading.Thread(target=capture_packets, args=(tshark_interface, timeout, node_list))
                     tshark_thread.start()
                     threads.append(tshark_thread)
+                    
                     ping_thread = threading.Thread(target=run_ping, args=(ue, interface, CONN_TEST_DEST))
                     ping_thread.start()
                     threads.append(ping_thread)
 
-                # Attendi che tutti i thread di tshark terminino
+                # Wait for all Tshark threads to finish
                 for thread in threads:
                     thread.join()
                 
+                # Sort and format node_list
                 node_list = sorted(node_list)
+                
+                # Function to format node names
                 def format_node(node):
                     matches = re.findall(r'(gnb\d+|upf(_mec)?)', node)
                     return matches[0][0]
+                
+                # Apply formatting and store results in formatted_node_list
                 for node in node_list:
                     formatted_node = format_node(node)
                     formatted_node_list.append(formatted_node)
+                
+                # Store formatted_node_list in tshark_result dictionary
                 tshark_result[(ue, ue_index, interface)] = formatted_node_list
 
     # Print nodes results
@@ -595,6 +616,7 @@ def show_nodes(user_equipments_to_test, ue_details):
     for ((ue, index, interface), nodes) in tshark_result.items():
         ue_label = f"{ue}[{index}]"
         data.append((ue_label, interface, nodes))
-    # Converte i dati in una tabella
+    
+    # Convert data to a table and print
     table = tabulate(data, headers=["UE", "Interface", "Nodes"], tablefmt="grid")
     print(table)
