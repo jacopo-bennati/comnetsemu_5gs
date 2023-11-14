@@ -11,7 +11,7 @@ import subprocess
 import asyncio 
 
 # Maximum number of retries
-MAX_RETRY = 3
+MAX_RETRY = 30
 # Corresponds to the number of ogstuns in upfs, therefore the upfs number
 INTERFACE_PER_UE = 2
 # Default destination for connectivity test 
@@ -43,10 +43,10 @@ def from_list_to_string_with_regex(regexp, lst):
     
     return re.findall(regexp, string)
 
-def get_ue_dictionary(ue_containers):
+def get_ue_dictionary(ue_containers, subscribers_info):
     user_equipments = {}
     for ue_container in ue_containers:
-        user_equipments[ue_container] = dump_imsi_in_container(ue_container)
+        user_equipments[ue_container] = dump_imsi_in_container(ue_container, subscribers_info)
     return user_equipments
 
 def get_ue_list(user_equipments):
@@ -104,12 +104,36 @@ def get_subscriber_info():
     
     return subscribers_info
 
-def dump_imsi_in_container(user_equipment):
+def dump_imsi_in_container(user_equipment, subscribers_info):
     # Execute 'docker exec' to enter the container
     command = f"docker exec {user_equipment} ./nr-cli --dump | cut -d'-' -f2"
-    imsi_output = subprocess.check_output(command, shell=True, universal_newlines=True)
-    imsi = imsi_output.splitlines()  # Extract IMSI from the output string
-    return imsi
+    
+    retry_count = 0
+    imsi_list = None
+    
+    while retry_count <= MAX_RETRY:
+        try:
+            imsi_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+            imsi_list = imsi_output.splitlines()  # Extract IMSI from the output string
+            
+            # Check if there are exactly 2 IMSI
+            if len(imsi_list) == 2:
+                break
+            else:
+                print(f"[\u2717] {user_equipment}: Waiting IMSI registration. Retrying in 15 seconds...")
+                retry_count += 1
+                time.sleep(15)
+        except Exception as e:
+            print(f"An error occurred for container {user_equipment}: {str(e)}. Retrying in 15 seconds...")
+            retry_count += 1
+            time.sleep(15)
+
+    if imsi_list is None:
+        print(f"[\u2717] {user_equipment}: Unable to get the list of IMSI after {MAX_RETRY} attempts.")
+        sys.exit(1)
+    
+    return imsi_list
+
 
 def get_subscriptions_dictionary(ue_details):
     subscribers_info = get_subscriber_info()
@@ -200,21 +224,37 @@ def get_upf_ip(name):
     upf_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
     return upf_ip
 
-def get_supi_detail_from_smf_log():
+def get_supi_detail_from_smf_log(subscribers_info):
     script_path = os.path.abspath(__file__)
     prj_folder = os.path.dirname(script_path)
     data = {}
     supi_pattern = re.compile(r'UE SUPI\[imsi-(\d+)\] DNN\[(\w+)\] IPv4\[([\d.]+)\] IPv6\[\]')
-    with open(f'{prj_folder}/log/smf.log', 'r') as log_file:
-        for line in log_file:
-            match = supi_pattern.search(line)
-            if match:
-                imsi = match.group(1)
-                dnn = match.group(2)
-                ip = match.group(3)
-                if imsi not in data:
-                    data[imsi] = {}
-                data[imsi][dnn] = ip
+    while True:
+        try:
+            with open(f'{prj_folder}/log/smf.log', 'r') as log_file:
+                for line in log_file:
+                    match = supi_pattern.search(line)
+                    if match:
+                        imsi = match.group(1)
+                        dnn = match.group(2)
+                        ip = match.group(3)
+                        if imsi not in data:
+                            data[imsi] = {}
+                        data[imsi][dnn] = ip
+
+                if len(data) == len(subscribers_info):
+                    break
+
+                print("SMF is not ready. Waiting 10 seconds...")
+                time.sleep(10)
+
+        except FileNotFoundError:
+            print("SMF is not ready. Waiting 10 seconds...")
+            time.sleep(10)
+            continue
+        except Exception as e:
+            print(f"An error occurred while reading the log file: {str(e)}")
+            sys.exit(1)
 
     sorted_data = {key: data[key] for key in sorted(data.keys())}
     return sorted_data
@@ -229,7 +269,7 @@ def get_interface_ip_dict(ue_container):
     interface_ip_dict = dict(zip(ips, interfaces))
     return interface_ip_dict
 
-def check_interfaces(ue_containers):
+def check_interfaces(ue_containers, subscribers_info):
     """Creates a dictionary with UE details with reference to IPs and interfaces of each slice of each IMSI.
     Also performs DN reachability."""
 
@@ -237,7 +277,7 @@ def check_interfaces(ue_containers):
     
     ue_details = {}
     
-    imsi_dn_ips_dict = get_supi_detail_from_smf_log()
+    imsi_dn_ips_dict = get_supi_detail_from_smf_log(subscribers_info)
 
     for ue_container, inner_ues in ue_containers.items():
         ue_details[ue_container] = {}
@@ -266,17 +306,22 @@ def check_interfaces(ue_containers):
                         'imsi': imsi,
                         'slice': slice_data
                     }
-                
-                if retry == MAX_RETRY:
-                    print(f"[\u2717] {ue_container}")
-                    print(f"Error: Interfaces are inactive in {ue_container}.")
-                    print(f"Note that if you just started the topology, it might take some time to set up the interfaces correctly, depending on network complexity.")
-                    sys.exit(1)
-                else:
-                    break
+                                
+                if len(ue_details[ue_container]) > 0: #TODO: forse si potrebbe andare a definire dinamicamente il numero di interfaccie che deve avere
+                    break    
+
+                print(f"[\u2717] {ue_container}: inactive interfaces, retrying in 15 seconds...")
+                time.sleep(20)
+
             except Exception as e:
                 print(f"An error occurred for container {ue_container}: {str(e)}")
                 sys.exit(1)
+                
+        if retry == MAX_RETRY:
+            print(f"[\u2717] {ue_container}")
+            print(f"Error: Interfaces are inactive in {ue_container}.")
+            print(f"Note that if you just started the topology, it might take some time to set up the interfaces correctly, depending on network complexity.")
+            sys.exit(1)
             
     # pprint.pprint(ue_details)
                 
