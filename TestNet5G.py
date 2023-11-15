@@ -26,20 +26,17 @@ def main():
     bandwidth_params = ["-h", "NAME 1 2 N, ..."]
     
     # ---------------------------------------------------------------------
-
-    o5gs   = Open5GS( "172.17.0.2" ,"27017")
-    subscribers_info = o5gs.getSubscribersImsiList()
     
     # Check the environment and get a list of container names
     container_names = utility.environment_check()
     
     # Separate UEs and GNBs from the list of container names
     ue_containers = utility.from_list_to_string_with_regex(REGEXP_UE, container_names)
-    user_equipments = utility.get_ue_dictionary(ue_containers, subscribers_info)
+    user_equipments = utility.get_ue_dictionary(ue_containers)
     user_equipments_list = utility.get_ue_list(user_equipments)
     
     # Check interfaces for each UE and get details
-    ue_details = utility.check_interfaces(user_equipments, subscribers_info)
+    ue_details = utility.check_interfaces(user_equipments)
     
     # Get subscription details
     subscription_details = utility.get_subscriptions_dictionary(ue_details)

@@ -8,10 +8,12 @@ from tabulate import tabulate
 import threading
 import pprint
 import subprocess
-import asyncio 
+import asyncio
+
+from python_modules.Open5GS import Open5GS 
 
 # Maximum number of retries
-MAX_RETRY = 30
+MAX_TRY = 3
 # Corresponds to the number of ogstuns in upfs, therefore the upfs number
 INTERFACE_PER_UE = 2
 # Default destination for connectivity test 
@@ -20,6 +22,8 @@ CONN_TEST_DEST = "www.google.com"
 UPF_MEC = "upf_mec"
 UPF_CLD = "upf_cld"
 MEC_SERVER_IP = "192.168.0.135"
+# Open5GS
+O5GS   = Open5GS( "172.17.0.2" ,"27017")
 
 # Print a list of available commands
 def help():
@@ -43,10 +47,33 @@ def from_list_to_string_with_regex(regexp, lst):
     
     return re.findall(regexp, string)
 
-def get_ue_dictionary(ue_containers, subscribers_info):
+def get_ue_dictionary(ue_containers):
+    subscribers_imsi = O5GS.getSubscribersImsiList()
     user_equipments = {}
-    for ue_container in ue_containers:
-        user_equipments[ue_container] = dump_imsi_in_container(ue_container, subscribers_info)
+    imsi_list = []
+
+    for retry in range(MAX_TRY):
+        try:
+            for ue_container in ue_containers:
+                user_equipments[ue_container] = dump_imsi_in_container(ue_container)
+                for imsi in user_equipments[ue_container]:
+                    imsi_list.append(imsi)
+
+            # Check if IMSI registration is correct 
+            if len(imsi_list) == len(subscribers_imsi):
+                break
+            else:
+                print(f"[\u2717] Waiting IMSI registration. Retrying in 15 seconds...")
+                time.sleep(15)
+
+        except Exception as e:
+            print(f"An error occurred: {str(e)}. Retrying in 15 seconds...")
+            time.sleep(15)
+            
+    if len(imsi_list) != len(subscribers_imsi):
+        print(f"[\u2717] Unable to get the list of IMSI after {MAX_TRY} attempts.")
+        sys.exit(1)
+
     return user_equipments
 
 def get_ue_list(user_equipments):
@@ -89,54 +116,19 @@ def environment_check():
     
     return container_names
 
-def get_subscriber_info():
-    # Get the path of the current Python script file
-    script_path = os.path.abspath(__file__)
-
-    # Get the path of the parent directory of the script file
-    prj_folder = os.path.dirname(script_path)
-
-    print("*** Retrieving subscriber information")
-
-    # Load test data from a JSON file
-    with open( prj_folder + '/python_modules/subscriber_profile2_2.json', 'r') as json_file:
-        subscribers_info = json.load(json_file)
-    
-    return subscribers_info
-
-def dump_imsi_in_container(user_equipment, subscribers_info):
+def dump_imsi_in_container(user_equipment):
     # Execute 'docker exec' to enter the container
     command = f"docker exec {user_equipment} ./nr-cli --dump | cut -d'-' -f2"
     
-    retry_count = 0
     imsi_list = None
-    
-    while retry_count <= MAX_RETRY:
-        try:
-            imsi_output = subprocess.check_output(command, shell=True, universal_newlines=True)
-            imsi_list = imsi_output.splitlines()  # Extract IMSI from the output string
-            
-            # Check if there are exactly 2 IMSI
-            if len(imsi_list) == 2:
-                break
-            else:
-                print(f"[\u2717] {user_equipment}: Waiting IMSI registration. Retrying in 15 seconds...")
-                retry_count += 1
-                time.sleep(15)
-        except Exception as e:
-            print(f"An error occurred for container {user_equipment}: {str(e)}. Retrying in 15 seconds...")
-            retry_count += 1
-            time.sleep(15)
-
-    if imsi_list is None:
-        print(f"[\u2717] {user_equipment}: Unable to get the list of IMSI after {MAX_RETRY} attempts.")
-        sys.exit(1)
+    imsi_output = subprocess.check_output(command, shell=True, universal_newlines=True)
+    imsi_list = imsi_output.splitlines()  # Extract IMSI from the output string
     
     return imsi_list
 
 
 def get_subscriptions_dictionary(ue_details):
-    subscribers_info = get_subscriber_info()
+    subscribers_info = O5GS._GetSubscribers()
 
     print("*** Creating a dictionary with UE subscription details")
 
@@ -148,7 +140,7 @@ def get_subscriptions_dictionary(ue_details):
             for inner_ue, data in inner_ues.items():
                 imsi = data['imsi']
                 # Search for IMSI in the JSON file and store slice details
-                for subscriber in subscribers_info['subscribers']:
+                for subscriber in subscribers_info:
                     if imsi in subscriber['imsi']:
                         slice_details = []
                         for slice in subscriber['slice']:
@@ -245,15 +237,15 @@ def get_supi_detail_from_smf_log(subscribers_info):
                 if len(data) == len(subscribers_info):
                     break
 
-                print("SMF is not ready. Waiting 10 seconds...")
+                print("[\u2717] SMF is not ready. Waiting 10 seconds...")
                 time.sleep(10)
 
         except FileNotFoundError:
-            print("SMF is not ready. Waiting 10 seconds...")
+            print("[\u2717] SMF is not ready. Waiting 10 seconds...")
             time.sleep(10)
             continue
         except Exception as e:
-            print(f"An error occurred while reading the log file: {str(e)}")
+            print(f"[\u2717] An error occurred while reading the log file: {str(e)}")
             sys.exit(1)
 
     sorted_data = {key: data[key] for key in sorted(data.keys())}
@@ -269,19 +261,21 @@ def get_interface_ip_dict(ue_container):
     interface_ip_dict = dict(zip(ips, interfaces))
     return interface_ip_dict
 
-def check_interfaces(ue_containers, subscribers_info):
+def check_interfaces(ue_containers):
     """Creates a dictionary with UE details with reference to IPs and interfaces of each slice of each IMSI.
     Also performs DN reachability."""
 
     print(f"*** Checking interfaces")    
     
+    subscribers_imsi = O5GS.getSubscribersImsiList()
     ue_details = {}
     
-    imsi_dn_ips_dict = get_supi_detail_from_smf_log(subscribers_info)
+    imsi_dn_ips_dict = get_supi_detail_from_smf_log(subscribers_imsi)
+    subscribers_info = O5GS._GetSubscribers()
 
     for ue_container, inner_ues in ue_containers.items():
         ue_details[ue_container] = {}
-        for retry in range(MAX_RETRY + 1):
+        for retry in range(MAX_TRY):
             try:
                 
                 interface_ip_dict = get_interface_ip_dict(ue_container)
@@ -306,18 +300,35 @@ def check_interfaces(ue_containers, subscribers_info):
                         'imsi': imsi,
                         'slice': slice_data
                     }
-                                
-                if len(ue_details[ue_container]) > 0: #TODO: forse si potrebbe andare a definire dinamicamente il numero di interfaccie che deve avere
-                    break    
 
-                print(f"[\u2717] {ue_container}: inactive interfaces, retrying in 15 seconds...")
-                time.sleep(20)
+                interfaces_found = True
+
+                for key, ue in ue_details[ue_container].items():
+                    ue_details_imsi = ue['imsi']
+                    ue_details_interfaces = ue['slice']
+
+                    subscriber_info_interfaces = None
+                    for subscriber in subscribers_info:
+                        if subscriber['imsi'] == ue_details_imsi:
+                            subscriber_info_interfaces = subscriber['slice']
+                            break
+                                
+                    if subscriber_info_interfaces is not None and len(ue_details_interfaces) == len(subscriber_info_interfaces):
+                        break    
+                    else:
+                        interfaces_found = False
+                
+                if interfaces_found:
+                    break
+                else:
+                    print(f"[\u2717] {ue_container}: inactive interfaces, retrying in 10 seconds...")
+                    time.sleep(10)
 
             except Exception as e:
                 print(f"An error occurred for container {ue_container}: {str(e)}")
                 sys.exit(1)
                 
-        if retry == MAX_RETRY:
+        if retry == MAX_TRY:
             print(f"[\u2717] {ue_container}")
             print(f"Error: Interfaces are inactive in {ue_container}.")
             print(f"Note that if you just started the topology, it might take some time to set up the interfaces correctly, depending on network complexity.")
