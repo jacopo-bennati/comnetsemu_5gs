@@ -28,9 +28,10 @@ O5GS   = Open5GS( "172.17.0.2" ,"27017")
 # Print a list of available commands
 def help():
     print("\tAvailable Commands:")
+    print("\t\tshow details - Display details")
     print("\t\tlatency - Run the latency test")
     print("\t\tbandwidth - Run the bandwidth test")
-    print("\t\tshow details - Display details")
+    print("\t\tnodes - Prints crossed nodes")
     print("\t\texit - Exit the program")
     print("\t\tclear - Clear the shell")
 
@@ -390,7 +391,7 @@ def run_ping(container_name, interface_name, destination):
     try:
         # print(f"Running ping in {container_name} using interface {interface_name}")
         # Run the ping command inside the container
-        command = f"docker exec {container_name} ping -c 3 -n -I {interface_name} {destination}"
+        command = f"docker exec {container_name} ping -c 10 -n -I {interface_name} {destination}"
         ping_output = subprocess.check_output(command, shell=True, universal_newlines=True)
         
         # Use a regular expression to find the ping statistics section
@@ -555,7 +556,7 @@ def run_iperf3(ue, interface, destination):
         command = f"docker exec {ue} ifconfig {interface} | awk '/inet / {{print $2}}' | tr -d '\n'"
         ue_upf_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
 
-        command = f"docker exec {ue} iperf3 -c {destination} -B {ue_upf_ip} -t 5"
+        command = f"docker exec {ue} iperf3 -c {destination} -B {ue_upf_ip} -t 15"
         output = subprocess.check_output(command, shell=True, universal_newlines=True)
         
         return extract_bandwidth_data(output=output)
