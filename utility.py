@@ -351,7 +351,7 @@ def check_interfaces(ue_containers):
                 destination = MEC_SERVER_IP if dnn == "mec" else CONN_TEST_DEST
                 try:
                     # run ping
-                    ping_result = run_ping(container, interface, destination)
+                    ping_result = run_ping(container, interface, destination, 3)
                 except RuntimeError as re:
                     print(re)
                     sys.exit(1)
@@ -385,13 +385,13 @@ def capture_packets(tshark_interface, timeout, nodes):
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
-def run_ping(container_name, interface_name, destination):
+def run_ping(container_name, interface_name, destination, packet=10):
     """Define a function to run a ping command and capture the output"""
 
     try:
         # print(f"Running ping in {container_name} using interface {interface_name}")
         # Run the ping command inside the container
-        command = f"docker exec {container_name} ping -c 10 -n -I {interface_name} {destination}"
+        command = f"docker exec {container_name} ping -c {packet} -n -I {interface_name} {destination}"
         ping_output = subprocess.check_output(command, shell=True, universal_newlines=True)
         
         # Use a regular expression to find the ping statistics section
