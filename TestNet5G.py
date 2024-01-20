@@ -1,13 +1,10 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import asyncio
 import utility
 import os
 from pyfiglet import Figlet
 import readline
-import pprint
-from python_modules.Open5GS import Open5GS
 
 # Regular Expressions
 REGEXP_UE = r'(ue\d)'

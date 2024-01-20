@@ -3,16 +3,13 @@
 
 import os
 
-from comnetsemu.cli import CLI, spawnXtermDocker
-from comnetsemu.net import Containernet, VNFManager
+from comnetsemu.cli import CLI
+from comnetsemu.net import Containernet
 from mininet.link import TCLink
 from mininet.log import info, setLogLevel
 from mininet.node import Controller
-
 from python_modules.Open5GS import Open5GS
-
-import json, time
-import subprocess
+import json
 
 if __name__ == "__main__":
 
@@ -37,7 +34,6 @@ if __name__ == "__main__":
         "cp",
         dimage="my5gc_v2-4-4",
         ip="192.168.0.111/24",
-        # dcmd="",
         dcmd="bash /open5gs/install/etc/open5gs/5gc_cp_init.sh",
         docker_args={
             "ports" : { "3000/tcp": 3000 },
@@ -73,7 +69,6 @@ if __name__ == "__main__":
         "upf_cld",
         dimage="my5gc_v2-4-4",
         ip="192.168.0.112/24",
-        # dcmd="",
         dcmd="bash /open5gs/install/etc/open5gs/temp/5gc_up_init.sh",
         docker_args={
             "environment": env,
@@ -107,7 +102,6 @@ if __name__ == "__main__":
         "upf_mec",
         dimage="my5gc_v2-4-4",
         ip="192.168.0.113/24",
-        # dcmd="",
         dcmd="bash /open5gs/install/etc/open5gs/temp/5gc_up_init.sh",
         docker_args={
             "environment": env,
@@ -141,7 +135,6 @@ if __name__ == "__main__":
         "gnb1", 
         dimage="myueransim_v3-2-6",
         ip="192.168.0.131/24",
-        # dcmd="",
         dcmd="bash /mnt/ueransim/open5gs_gnb_init.sh",
         docker_args={
             "environment": env,
@@ -175,7 +168,6 @@ if __name__ == "__main__":
         "gnb2", 
         dimage="myueransim_v3-2-6",
         ip="192.168.0.132/24",
-        # dcmd="",
         dcmd="bash /mnt/ueransim/open5gs_gnb_2_init.sh",
         docker_args={
             "environment": env,
@@ -209,7 +201,6 @@ if __name__ == "__main__":
         "ue1", 
         dimage="myueransim_v3-2-6",
         ip="192.168.0.133/24",
-        # dcmd="",
         dcmd="bash /mnt/ueransim/open5gs_ue_init.sh",
         docker_args={
             "environment": env,
@@ -243,7 +234,6 @@ if __name__ == "__main__":
         "ue2", 
         dimage="myueransim_v3-2-6",
         ip="192.168.0.134/24",
-        # dcmd="",
         dcmd="bash /mnt/ueransim/open5gs_ue_2_init.sh",
         docker_args={
             "environment": env,
@@ -277,7 +267,6 @@ if __name__ == "__main__":
         "mec_server", 
         dimage="mec_server",
         ip="192.168.0.135/24",
-        # dcmd="echo hello docker",
         dcmd="bash /mnt/mec_server/mec_server.sh",
         docker_args={
             "environment": env,
@@ -349,6 +338,5 @@ if __name__ == "__main__":
 
     if not AUTOTEST_MODE:
         # spawnXtermDocker("open5gs")
-        # spawnXtermDocker("gnb_1")
         CLI(net)
     net.stop()

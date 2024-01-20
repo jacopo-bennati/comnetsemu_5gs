@@ -2,14 +2,9 @@ import subprocess
 import re
 import time
 import sys
-import json
 import os
 from tabulate import tabulate 
 import threading
-import pprint
-import subprocess
-import asyncio
-
 from python_modules.Open5GS import Open5GS 
 
 # Maximum number of retries
@@ -127,7 +122,6 @@ def dump_imsi_in_container(user_equipment):
     
     return imsi_list
 
-
 def get_subscriptions_dictionary(ue_details):
     subscribers_info = O5GS._GetSubscribers()
 
@@ -140,7 +134,7 @@ def get_subscriptions_dictionary(ue_details):
         for ue_container, inner_ues in ue_details.items():
             for inner_ue, data in inner_ues.items():
                 imsi = data['imsi']
-                # Search for IMSI in the JSON file and store slice details
+                # Search for IMSI in the subscriber list and store slice details
                 for subscriber in subscribers_info:
                     if imsi in subscriber['imsi']:
                         slice_details = []
@@ -335,7 +329,6 @@ def check_interfaces(ue_containers):
             print(f"Note that if you just started the topology, it might take some time to set up the interfaces correctly, depending on network complexity.")
             sys.exit(1)
             
-    # pprint.pprint(ue_details)
                 
     # Run connectivity test
     for container, inner_ue_data in ue_details.items():

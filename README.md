@@ -1,8 +1,11 @@
 
 # Comnetsmu_5gs [Networking II]
 
-Emulate a 5G network deployment in comnetsemu.
+
+>Emulate a 5G network deployment in comnetsemu.
 Demonstrate distributed UPF deployment and slice-base UPF selection.
+
+![topology](/images/newTopology.png)
 
 #### Networking II project team:
 * Bennati Jacopo (mat. 209869)
@@ -59,14 +62,14 @@ Inside the root folder of the repository run the bash script to perform a ___cle
 ./runTopology.sh
 ```
 
-### Or instead run it manually
+#### Or instead run it manually
 
 Inside the root folder of the repository run the script as ___sudo___:
 ```
 sudo python3 2gnb_4ue_network.py
 ```
 
-### Runtime issues
+#### Runtime issues
 
 If started manually and getting issues try running the clean script located in the root folder: 
 ```
