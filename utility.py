@@ -18,7 +18,7 @@ UPF_MEC = "upf_mec"
 UPF_CLD = "upf_cld"
 MEC_SERVER_IP = "192.168.0.135"
 # Open5GS
-O5GS   = Open5GS( "172.17.0.2" ,"27017")
+O5GS = Open5GS( "172.17.0.2" ,"27017")
 
 # Print a list of available commands
 def help():
@@ -344,7 +344,7 @@ def check_interfaces(ue_containers):
                 destination = MEC_SERVER_IP if dnn == "mec" else CONN_TEST_DEST
                 try:
                     # run ping
-                    ping_result = run_ping(container, interface, destination, 3)
+                    ping_result = run_ping(container, interface, destination, packet=3)
                 except RuntimeError as re:
                     print(re)
                     sys.exit(1)
@@ -547,9 +547,8 @@ def run_iperf3(ue, interface, destination):
     """Define a function to run an iperf3 command and capture the output"""
     try:
         command = f"docker exec {ue} ifconfig {interface} | awk '/inet / {{print $2}}' | tr -d '\n'"
-        ue_upf_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
-
-        command = f"docker exec {ue} iperf3 -c {destination} -B {ue_upf_ip} -t 15"
+        interface_ip = subprocess.check_output(command, shell=True, universal_newlines=True)
+        command = f"docker exec {ue} iperf3 -c {destination} -B {interface_ip} -t 15"
         output = subprocess.check_output(command, shell=True, universal_newlines=True)
         
         return extract_bandwidth_data(output=output)
@@ -625,6 +624,8 @@ def show_nodes(user_equipments_to_test, ue_details):
             for slice in slices:
                 # Extract interface information
                 interface = slice['interface']
+                dnn = slice['dnn']
+                destination = CONN_TEST_DEST if dnn=='internet' else MEC_SERVER_IP
                 
                 # Lists to store raw and formatted node information
                 node_list = []
@@ -636,7 +637,7 @@ def show_nodes(user_equipments_to_test, ue_details):
                     tshark_thread.start()
                     threads.append(tshark_thread)
                     
-                    ping_thread = threading.Thread(target=run_ping, args=(ue, interface, CONN_TEST_DEST))
+                    ping_thread = threading.Thread(target=run_ping, args=(ue, interface, destination))
                     ping_thread.start()
                     threads.append(ping_thread)
 
